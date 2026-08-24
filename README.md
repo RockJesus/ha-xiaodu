@@ -55,7 +55,7 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 
 ### 方法二：HACS 安装
 
-1. 在 HACS 中添加自定义仓库：`[https://github.com/xiaodu-ha/xiaodu](https://github.com/RockJesus/ha-xiaodu)`，类别选择「集成」
+1. 在 HACS 中添加自定义仓库：https://github.com/RockJesus/ha-xiaodu ，类别选择「集成」
 2. 在 HACS 集成列表中搜索「小度智能」并安装
 3. 重启 Home Assistant
 
