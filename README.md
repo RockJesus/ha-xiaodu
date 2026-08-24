@@ -1,6 +1,6 @@
 # 小度智能 Home Assistant 集成
 
-将百度小度生态中的智能设备反向接入 Home Assistant，支持在 HA 中统一控制小度音箱、小度 APP 中绑定的所有智能家居设备。
+将百度小度生态中的智能设备反向接入 Home Assistant，支持在 HA 中统一控制小度音箱、小度 APP 中绑定的所有智能家居设备（包括第三方设备）。
 
 ## 功能特性
 
@@ -55,7 +55,7 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 
 ### 方法二：HACS 安装
 
-1. 在 HACS 中添加自定义仓库：`https://github.com/xiaodu-ha/xiaodu`，类别选择「集成」
+1. 在 HACS 中添加自定义仓库：`[https://github.com/xiaodu-ha/xiaodu](https://github.com/RockJesus/ha-xiaodu)`，类别选择「集成」
 2. 在 HACS 集成列表中搜索「小度智能」并安装
 3. 重启 Home Assistant
 
