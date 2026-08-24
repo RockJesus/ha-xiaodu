@@ -1,0 +1,25 @@
+name: Validate Integration
+on:
+  push:
+  pull_request:
+  workflow_dispatch:  # 支持手动在Actions页面点击运行
+
+jobs:
+  hacs_validate:
+    name: HACS Action Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: HACS Validation
+        uses: hacs/action@main
+        with:
+          category: integration
+
+  hassfest_validate:
+    name: Hassfest Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Hassfest
+        uses: home-assistant/actions/hassfest@master
