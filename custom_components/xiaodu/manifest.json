@@ -1,12 +1,12 @@
 {
   "domain": "xiaodu",
   "name": "小度智能",
-  "codeowners": ["@xiaodu-ha"],
+  "codeowners": ["@RockJesus"],
   "config_flow": true,
-  "documentation": "https://github.com/RockJesus/ha-xiaodu",
+  "documentation": "https://github.com/RockJesus/ha-xiaodu/blob/main/README.md",
   "issue_tracker": "https://github.com/RockJesus/ha-xiaodu/issues",
   "iot_class": "cloud_polling",
   "requirements": [],
   "dependencies": [],
-  "version": "2.0.0"
+  "version": "1.0.0"
 }
