@@ -2,7 +2,6 @@
   "name": "xiaodu",
   "homeassistant": "2024.1.0",
   "content_in_root": false,
-  "domains": ["xiaodu"],
   "country": ["CN"],
   "render_readme": true
 }
