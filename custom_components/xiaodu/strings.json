@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "小度智能 - 登录",
-        "description": "请输入小度账号的 BDUSS Cookie 值。\n\n获取方法：\n1. 浏览器访问 https://xiaodu.baidu.com/saiya/smarthome/index.html 并登录\n2. 按 F12 打开开发者工具 -> 应用(Application) -> Cookie\n3. 找到 BDUSS 字段，复制其值粘贴到下方",
+        "description": "请输入小度账号的 BDUSS Cookie 值。\n\n获取方法：\n1. 浏览器访问 小度官网网页版 并登录\n2. 按 F12 打开开发者工具 -> 应用(Application) -> Cookie\n3. 找到 BDUSS 字段，复制其值粘贴到下方",
         "data": {
           "cookie": "BDUSS Cookie"
         }
