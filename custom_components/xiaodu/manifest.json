@@ -4,9 +4,8 @@
   "codeowners": ["@RockJesus"],
   "config_flow": true,
   "documentation": "https://github.com/RockJesus/ha-xiaodu/blob/main/README.md",
-  "issue_tracker": "https://github.com/RockJesus/ha-xiaodu/issues",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/RockJesus/ha-xiaodu/issues",
   "requirements": [],
-  "dependencies": [],
   "version": "1.0.0"
 }
