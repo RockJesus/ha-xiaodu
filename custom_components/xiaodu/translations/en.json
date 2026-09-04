@@ -1,0 +1,51 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Xiaodu Smart - Login",
+        "description": "Enter the BDUSS Cookie value of your Xiaodu account.\n\nHow to get it:\n1. Visit the Xiaodu web version in your browser and log in\n2. Press F12 to open DevTools -> Application -> Cookies\n3. Find the BDUSS field, copy its value and paste it below",
+        "data": {
+          "cookie": "BDUSS Cookie"
+        }
+      },
+      "house": {
+        "title": "Select Home",
+        "description": "Select the home to integrate",
+        "data": {
+          "house_id": "Home"
+        }
+      },
+      "device": {
+        "title": "Select Devices",
+        "description": "Select the devices to integrate into Home Assistant",
+        "data": {
+          "device_ids": "Device List"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Cookie is invalid or expired, please obtain again",
+      "cannot_connect": "Cannot connect to Xiaodu server, please check network",
+      "cookie_expired": "Cookie has expired, please update",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "This home has already been configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Xiaodu Smart - Update Cookie",
+        "description": "Cookie is valid for about 180 days. Please update it here after expiration",
+        "data": {
+          "cookie": "New BDUSS Cookie"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Cookie is invalid or expired, please obtain again",
+      "cannot_connect": "Cannot connect to Xiaodu server"
+    }
+  }
+}
