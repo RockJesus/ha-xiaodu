@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import os
 from typing import Any
 
 import voluptuous as vol
@@ -16,9 +14,8 @@ from homeassistant.helpers import config_validation as cv
 
 from .api import XiaoDuAPI
 from .const import (
-    CAPTCHA_IMAGE,
     CONF_APPLIANCE_TYPES,
-    CONF_CODESTRING,
+    CONF_BAIDUID,
     CONF_COOKIE,
     CONF_DEVICES,
     CONF_HOUSE_ID,
@@ -26,16 +23,16 @@ from .const import (
     CONF_LOGIN_MODE,
     CONF_PASSWORD,
     CONF_USERNAME,
-    CONF_VERIFYCODE,
     DOMAIN,
     ERROR_CANNOT_CONNECT,
     ERROR_INVALID_AUTH,
     ERROR_LOGIN_FAILED,
+    ERROR_LOGIN_BLOCKED,
     ERROR_UNKNOWN,
     LOGIN_MODE_COOKIE,
     LOGIN_MODE_PASSWORD,
 )
-from .login import BaiduCaptchaRequired, BaiduLogin, BaiduLoginError
+from .login import BaiduLogin, BaiduLoginBlocked, BaiduLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,21 +97,19 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             username = user_input[CONF_USERNAME].strip()
             password = user_input[CONF_PASSWORD]
+            baiduid = user_input.get(CONF_BAIDUID, "").strip()
             if not username or not password:
                 errors["base"] = ERROR_LOGIN_FAILED
             else:
                 session = async_get_clientsession(self.hass)
                 self._login = BaiduLogin(session)
                 try:
-                    result = await self._login.login(username, password)
-                except BaiduCaptchaRequired as exc:
-                    self._login_state = {
-                        "username": username,
-                        "password": password,
-                        "codestring": exc.codestring,
-                    }
-                    await self._save_captcha_image(exc.codestring)
-                    return await self.async_step_captcha()
+                    result = await self._login.login(
+                        username, password, baiduid=baiduid
+                    )
+                except BaiduLoginBlocked as exc:
+                    _LOGGER.warning("XiaoDu password login blocked: %s", exc)
+                    errors["base"] = ERROR_LOGIN_BLOCKED
                 except BaiduLoginError as exc:
                     _LOGGER.warning("XiaoDu password login failed: %s", exc)
                     errors["base"] = ERROR_LOGIN_FAILED
@@ -128,57 +123,14 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_USERNAME): str,
                     vol.Required(CONF_PASSWORD): str,
+                    vol.Optional(CONF_BAIDUID): str,
                 }
             ),
             errors=errors,
+            description_placeholders={},
         )
 
-    # ── Step 2b: captcha input ───────────────────────────────────────
-
-    async def async_step_captcha(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Handle captcha input."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            verifycode = user_input[CONF_VERIFYCODE].strip()
-            if not verifycode:
-                errors["base"] = ERROR_CAPTCHA_REQUIRED
-            else:
-                assert self._login is not None
-                try:
-                    result = await self._login.login(
-                        self._login_state["username"],
-                        self._login_state["password"],
-                        verifycode=verifycode,
-                        codestring=self._login_state["codestring"],
-                    )
-                except BaiduCaptchaRequired as exc:
-                    self._login_state["codestring"] = exc.codestring
-                    await self._save_captcha_image(exc.codestring)
-                    errors["base"] = ERROR_CAPTCHA_REQUIRED
-                except BaiduLoginError as exc:
-                    _LOGGER.warning("XiaoDu password login failed: %s", exc)
-                    errors["base"] = ERROR_LOGIN_FAILED
-                else:
-                    self._cookie = result["bduss"]
-                    return await self._proceed_after_auth()
-
-        return self.async_show_form(
-            step_id="captcha",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_VERIFYCODE): str,
-                }
-            ),
-            description_placeholders={
-                "captcha_image": f"![验证码](/local/{CAPTCHA_IMAGE})"
-            },
-            errors=errors,
-        )
-
-    # ── Step 2c: cookie login (original flow) ────────────────────────
+    # ── Step 2b: cookie login (original flow) ────────────────────────
 
     async def async_step_cookie(
         self, user_input: dict[str, Any] | None = None
@@ -226,21 +178,6 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not self._house_list:
             return self.async_abort(reason="no_house_found")
         return await self.async_step_house()
-
-    async def _save_captcha_image(self, codestring: str) -> None:
-        """Download the captcha image into the HA www directory."""
-        assert self._login is not None
-        data = await self._login.download_captcha(codestring)
-        www_dir = self.hass.config.path("www")
-        await asyncio.to_thread(os.makedirs, www_dir, exist_ok=True)
-        await asyncio.to_thread(
-            self._write_captcha, www_dir, data
-        )
-
-    @staticmethod
-    def _write_captcha(www_dir: str, data: bytes) -> None:
-        with open(os.path.join(www_dir, CAPTCHA_IMAGE), "wb") as fh:
-            fh.write(data)
 
     # ── House selection ──────────────────────────────────────────────
 

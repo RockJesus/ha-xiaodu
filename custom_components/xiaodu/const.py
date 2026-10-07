@@ -14,6 +14,7 @@ CONF_APPLIANCE_TYPES = "appliance_types"
 CONF_LOGIN_MODE = "login_mode"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
+CONF_BAIDUID = "baiduid"
 CONF_VERIFYCODE = "verifycode"
 CONF_CODESTRING = "codestring"
 

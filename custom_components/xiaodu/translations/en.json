@@ -3,24 +3,18 @@
     "step": {
       "user": {
         "title": "Choose Login Method",
-        "description": "Choose how to log in to your Xiaodu account.\n\nUsername/password: enter your Baidu credentials and the integration logs in automatically;\nCookie: paste the BDUSS cookie obtained from your browser.",
+        "description": "Choose how to log in to your Xiaodu account.\n\nUsername/password: enter your Baidu credentials and the integration logs in automatically (adding a BAIDUID is strongly recommended for higher success);\nCookie: paste the BDUSS cookie obtained from your browser.",
         "data": {
           "login_mode": "Login Method"
         }
       },
       "login": {
         "title": "Username / Password Login",
-        "description": "Enter the username and password of your Baidu account (the same account as the Xiaodu app).",
+        "description": "Enter the username and password of your Baidu account (the same account as the Xiaodu app).\n\nBAIDUID (optional but recommended): visit baidu.com in your browser, press F12 -> Application -> Cookies, copy the value of the BAIDUID field (e.g. XXXX...:FG=1) and paste it below. This significantly improves success and avoids Baidu's SMS-verification risk control.",
         "data": {
           "username": "Username / Phone",
-          "password": "Password"
-        }
-      },
-      "captcha": {
-        "title": "Enter Captcha",
-        "description": "Enter the characters shown in the captcha image below:\n\n{captcha_image}",
-        "data": {
-          "verifycode": "Captcha"
+          "password": "Password",
+          "baiduid": "BAIDUID (optional)"
         }
       },
       "cookie": {
@@ -52,7 +46,7 @@
       "unknown": "Unknown error",
       "no_device_selected": "Please select at least one device",
       "login_failed": "Login failed, please check your credentials or try again later",
-      "captcha_required": "Captcha is incorrect, please try again"
+      "login_blocked": "Baidu risk control requires verification (SMS/captcha). Please provide a valid BAIDUID and retry, or use Cookie login instead."
     },
     "abort": {
       "already_configured": "This home has already been configured",
