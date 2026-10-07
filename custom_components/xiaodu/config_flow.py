@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 from typing import Any
 
 import voluptuous as vol
@@ -14,18 +16,33 @@ from homeassistant.helpers import config_validation as cv
 
 from .api import XiaoDuAPI
 from .const import (
+    CAPTCHA_IMAGE,
     CONF_APPLIANCE_TYPES,
+    CONF_CODESTRING,
     CONF_COOKIE,
     CONF_DEVICES,
     CONF_HOUSE_ID,
     CONF_HOUSE_NAME,
+    CONF_LOGIN_MODE,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_VERIFYCODE,
     DOMAIN,
     ERROR_CANNOT_CONNECT,
     ERROR_INVALID_AUTH,
+    ERROR_LOGIN_FAILED,
     ERROR_UNKNOWN,
+    LOGIN_MODE_COOKIE,
+    LOGIN_MODE_PASSWORD,
 )
+from .login import BaiduCaptchaRequired, BaiduLogin, BaiduLoginError
 
 _LOGGER = logging.getLogger(__name__)
+
+LOGIN_MODE_LABELS = {
+    LOGIN_MODE_PASSWORD: "用户名密码登录",
+    LOGIN_MODE_COOKIE: "Cookie 登录（推荐）",
+}
 
 
 class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -40,6 +57,8 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._house_id: str | None = None
         self._house_name: str | None = None
         self._device_dict: dict[str, str] | None = None
+        self._login: BaiduLogin | None = None
+        self._login_state: dict[str, str] = {}
 
     @staticmethod
     @callback
@@ -47,10 +66,124 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Create the options flow."""
         return XiaoDuOptionsFlow(config_entry)
 
+    # ── Step 1: choose login method ──────────────────────────────────
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Handle the initial step — enter cookie."""
+        """Handle the initial step — choose login method."""
+        if user_input is not None:
+            mode = user_input[CONF_LOGIN_MODE]
+            if mode == LOGIN_MODE_PASSWORD:
+                return await self.async_step_login()
+            return await self.async_step_cookie()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_LOGIN_MODE, default=LOGIN_MODE_PASSWORD
+                    ): vol.In(LOGIN_MODE_LABELS),
+                }
+            ),
+        )
+
+    # ── Step 2a: username / password login ───────────────────────────
+
+    async def async_step_login(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle username/password login."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            username = user_input[CONF_USERNAME].strip()
+            password = user_input[CONF_PASSWORD]
+            if not username or not password:
+                errors["base"] = ERROR_LOGIN_FAILED
+            else:
+                session = async_get_clientsession(self.hass)
+                self._login = BaiduLogin(session)
+                try:
+                    result = await self._login.login(username, password)
+                except BaiduCaptchaRequired as exc:
+                    self._login_state = {
+                        "username": username,
+                        "password": password,
+                        "codestring": exc.codestring,
+                    }
+                    await self._save_captcha_image(exc.codestring)
+                    return await self.async_step_captcha()
+                except BaiduLoginError as exc:
+                    _LOGGER.warning("XiaoDu password login failed: %s", exc)
+                    errors["base"] = ERROR_LOGIN_FAILED
+                else:
+                    self._cookie = result["bduss"]
+                    return await self._proceed_after_auth()
+
+        return self.async_show_form(
+            step_id="login",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    # ── Step 2b: captcha input ───────────────────────────────────────
+
+    async def async_step_captcha(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle captcha input."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            verifycode = user_input[CONF_VERIFYCODE].strip()
+            if not verifycode:
+                errors["base"] = ERROR_CAPTCHA_REQUIRED
+            else:
+                assert self._login is not None
+                try:
+                    result = await self._login.login(
+                        self._login_state["username"],
+                        self._login_state["password"],
+                        verifycode=verifycode,
+                        codestring=self._login_state["codestring"],
+                    )
+                except BaiduCaptchaRequired as exc:
+                    self._login_state["codestring"] = exc.codestring
+                    await self._save_captcha_image(exc.codestring)
+                    errors["base"] = ERROR_CAPTCHA_REQUIRED
+                except BaiduLoginError as exc:
+                    _LOGGER.warning("XiaoDu password login failed: %s", exc)
+                    errors["base"] = ERROR_LOGIN_FAILED
+                else:
+                    self._cookie = result["bduss"]
+                    return await self._proceed_after_auth()
+
+        return self.async_show_form(
+            step_id="captcha",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_VERIFYCODE): str,
+                }
+            ),
+            description_placeholders={
+                "captcha_image": f"![验证码](/local/{CAPTCHA_IMAGE})"
+            },
+            errors=errors,
+        )
+
+    # ── Step 2c: cookie login (original flow) ────────────────────────
+
+    async def async_step_cookie(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle cookie login."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -68,14 +201,10 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = ERROR_UNKNOWN
             else:
                 self._cookie = cookie
-                self._house_list = await api.get_house_list()
-                if not self._house_list:
-                    errors["base"] = ERROR_CANNOT_CONNECT
-                else:
-                    return await self.async_step_house()
+                return await self._proceed_after_auth()
 
         return self.async_show_form(
-            step_id="user",
+            step_id="cookie",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_COOKIE): str,
@@ -83,6 +212,37 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    # ── Shared: house list after auth ────────────────────────────────
+
+    async def _proceed_after_auth(
+        self,
+    ) -> config_entries.ConfigFlowResult:
+        """After auth (cookie obtained), load houses and continue."""
+        assert self._cookie is not None
+        session = async_get_clientsession(self.hass)
+        api = XiaoDuAPI(cookie=self._cookie, session=session)
+        self._house_list = await api.get_house_list()
+        if not self._house_list:
+            return self.async_abort(reason="no_house_found")
+        return await self.async_step_house()
+
+    async def _save_captcha_image(self, codestring: str) -> None:
+        """Download the captcha image into the HA www directory."""
+        assert self._login is not None
+        data = await self._login.download_captcha(codestring)
+        www_dir = self.hass.config.path("www")
+        await asyncio.to_thread(os.makedirs, www_dir, exist_ok=True)
+        await asyncio.to_thread(
+            self._write_captcha, www_dir, data
+        )
+
+    @staticmethod
+    def _write_captcha(www_dir: str, data: bytes) -> None:
+        with open(os.path.join(www_dir, CAPTCHA_IMAGE), "wb") as fh:
+            fh.write(data)
+
+    # ── House selection ──────────────────────────────────────────────
 
     async def async_step_house(
         self, user_input: dict[str, Any] | None = None
@@ -110,6 +270,8 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    # ── Device selection ─────────────────────────────────────────────
 
     async def async_step_device(
         self, user_input: dict[str, Any] | None = None

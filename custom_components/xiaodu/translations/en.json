@@ -2,8 +2,30 @@
   "config": {
     "step": {
       "user": {
-        "title": "Xiaodu Smart - Login",
-        "description": "Enter the BDUSS Cookie value of your Xiaodu account.\n\nHow to get it:\n1. Visit the Xiaodu web version in your browser and log in\n2. Press F12 to open DevTools -> Application -> Cookies\n3. Find the BDUSS field, copy its value and paste it below",
+        "title": "Choose Login Method",
+        "description": "Choose how to log in to your Xiaodu account.\n\nUsername/password: enter your Baidu credentials and the integration logs in automatically;\nCookie: paste the BDUSS cookie obtained from your browser.",
+        "data": {
+          "login_mode": "Login Method"
+        }
+      },
+      "login": {
+        "title": "Username / Password Login",
+        "description": "Enter the username and password of your Baidu account (the same account as the Xiaodu app).",
+        "data": {
+          "username": "Username / Phone",
+          "password": "Password"
+        }
+      },
+      "captcha": {
+        "title": "Enter Captcha",
+        "description": "Enter the characters shown in the captcha image below:\n\n{captcha_image}",
+        "data": {
+          "verifycode": "Captcha"
+        }
+      },
+      "cookie": {
+        "title": "Cookie Login",
+        "description": "Enter the BDUSS Cookie value of your Xiaodu account.\n\nHow to get it:\n1. Visit https://xiaodu.baidu.com/saiya/smarthome/index.html in your browser and log in\n2. Press F12 to open DevTools -> Application -> Cookies\n3. Find the BDUSS field, copy its value and paste it below",
         "data": {
           "cookie": "BDUSS Cookie"
         }
@@ -27,10 +49,14 @@
       "invalid_auth": "Cookie is invalid or expired, please obtain again",
       "cannot_connect": "Cannot connect to Xiaodu server, please check network",
       "cookie_expired": "Cookie has expired, please update",
-      "unknown": "Unknown error"
+      "unknown": "Unknown error",
+      "no_device_selected": "Please select at least one device",
+      "login_failed": "Login failed, please check your credentials or try again later",
+      "captcha_required": "Captcha is incorrect, please try again"
     },
     "abort": {
-      "already_configured": "This home has already been configured"
+      "already_configured": "This home has already been configured",
+      "no_house_found": "No home was found for this account"
     }
   },
   "options": {
