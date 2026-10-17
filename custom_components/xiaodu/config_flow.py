@@ -162,6 +162,9 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_COOKIE): str,
                 }
             ),
+            description_placeholders={
+                "url": "https://xiaodu.baidu.com/saiya/smarthome/index.html",
+            },
             errors=errors,
         )
 

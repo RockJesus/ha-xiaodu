@@ -19,7 +19,7 @@
       },
       "cookie": {
         "title": "Cookie Login",
-        "description": "Enter the BDUSS Cookie value of your Xiaodu account.\n\nHow to get it:\n1. Visit https://xiaodu.baidu.com/saiya/smarthome/index.html in your browser and log in\n2. Press F12 to open DevTools -> Application -> Cookies\n3. Find the BDUSS field, copy its value and paste it below",
+        "description": "Enter the BDUSS Cookie value of your Xiaodu account.\n\nHow to get it:\n1. Visit {url} in your browser and log in\n2. Press F12 to open DevTools -> Application -> Cookies\n3. Find the BDUSS field, copy its value and paste it below",
         "data": {
           "cookie": "BDUSS Cookie"
         }

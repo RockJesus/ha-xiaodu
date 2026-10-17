@@ -183,7 +183,20 @@ xiaodu_integration/
 
 ## 更新日志
 
-### v1.1.1（2026-10-07）
+### v1.1.2（2026-10-17）
+
+- **修复：Hassfest CI 校验** — `strings.json` / 翻译中 Cookie 步骤描述包含 URL，违反 HA 翻译规范（字符串不得含 URL，须用 description placeholders），已改为 `{url}` 占位符并在配置流程传入；补 `CONFIG_SCHEMA`（config entry only），消除 hassfest CONFIG_SCHEMA 警告
+- **修复：品牌图规范** — `brand/icon.png` 调整至 256×256、新增 `icon@2x.png`（512×512）；`logo.png` 最短边调至 256、新增 `logo@2x.png`（最短边 512），符合 HACS brands 规范
+- 为提交 HACS 官方默认仓库（hacs/default）PR 做准备：两个 CI（HACS Action + Hassfest）全绿
+
+<details>
+<summary>v1.1.1（2026-10-07）</summary>
+
+- **修复：用户名密码登录按真实协议重写** — 依据抓包（Reqable HAR）逆向出百度 wappass 网页登录真实流程：`antireplaytoken` 取 servertime → `viewlog` / `cap/init` 取 ds/tk/s/k → RSA 加密账号密码 → moonshadV3 风控签名（含按天轮换的 AES 密钥、屏幕混淆、双层 base64）→ `wappass.baidu.com/wp/api/login` 登录。此前 v1.1.0 使用的 passport basicLogin 假设协议与真实抓包不符，已全部替换
+- **新增：BAIDUID 可选字段** — 用户名密码登录页可填写浏览器 Cookie 中的 `BAIDUID` 值（形如 `XXXX...:FG=1`），显著提升登录成功率
+- **风控错误提示** — 百度返回 400023（强制短信验证）时，配置界面明确提示填写 BAIDUID 或改用 Cookie 登录
+
+</details>
 
 - **修复：用户名密码登录按真实协议重写** — 依据抓包（Reqable HAR）逆向出百度 wappass 网页登录真实流程：`antireplaytoken` 取 servertime → `viewlog` / `cap/init` 取 ds/tk/s/k → RSA 加密账号密码 → moonshadV3 风控签名（含按天轮换的 AES 密钥、屏幕混淆、双层 base64）→ `wappass.baidu.com/wp/api/login` 登录。此前 v1.1.0 使用的 passport basicLogin 假设协议与真实抓包不符，已全部替换
 - **新增：BAIDUID 可选字段** — 用户名密码登录页可填写浏览器 Cookie 中的 `BAIDUID` 值（形如 `XXXX...:FG=1`），显著提升登录成功率
