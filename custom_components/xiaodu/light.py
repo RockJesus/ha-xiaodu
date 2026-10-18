@@ -122,6 +122,13 @@ class XiaoDuLight(CoordinatorEntity, LightEntity):
         }
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Diagnostic attributes — expose raw appliance types."""
+        return {
+            "appliance_types": getattr(self._api, "appliance_types", []),
+        }
+
+    @property
     def available(self) -> bool:
         """Return if entity is available."""
         return self.coordinator.get_appliance_data(self._appliance_id) is not None

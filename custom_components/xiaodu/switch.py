@@ -32,22 +32,41 @@ async def async_setup_entry(
     entities = []
     for appliance_id, api in apis.items():
         appliance_types = getattr(api, "appliance_types", [])
-        if not ApplianceTypes.is_switch(appliance_types):
-            continue
-
         appliance = coordinator.get_appliance_info(appliance_id)
         if not appliance:
             continue
 
-        # Clothes rack has multiple panel switches
-        if ApplianceTypes.is_clothes_rack(appliance_types):
-            panels = _extract_clothes_rack_panels(appliance)
-            for panel in panels:
-                entities.append(
-                    XiaoDuPanelSwitch(api, coordinator, appliance, panel)
+        if ApplianceTypes.is_switch(appliance_types):
+            # Clothes rack has multiple panel switches
+            if ApplianceTypes.is_clothes_rack(appliance_types):
+                panels = _extract_clothes_rack_panels(appliance)
+                for panel in panels:
+                    entities.append(
+                        XiaoDuPanelSwitch(api, coordinator, appliance, panel)
+                    )
+            else:
+                entities.append(XiaoDuSwitch(api, coordinator, appliance))
+            continue
+
+        # Fallback: unknown appliance type (e.g. robot vacuum not in any
+        # dedicated platform set) — expose a generic power switch so the
+        # device is never silently dropped. Every XiaoDu appliance supports
+        # the standard TurnOn/TurnOff protocol.
+        if not any(
+            t in ApplianceTypes.KNOWN_ALL_TYPES for t in appliance_types
+        ):
+            _LOGGER.info(
+                "XiaoDu appliance %s (%s) has unmapped types %s — "
+                "creating generic power switch",
+                appliance_id,
+                appliance.get("friendlyName", "?"),
+                appliance_types,
+            )
+            entities.append(
+                XiaoDuSwitch(
+                    api, coordinator, appliance, fallback=True
                 )
-        else:
-            entities.append(XiaoDuSwitch(api, coordinator, appliance))
+            )
 
     async_add_entities(entities)
 
@@ -84,6 +103,7 @@ class XiaoDuSwitch(CoordinatorEntity, SwitchEntity):
         api: XiaoDuAPI,
         coordinator: XiaoDuDataUpdateCoordinator,
         appliance: dict[str, Any],
+        fallback: bool = False,
     ) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
@@ -92,6 +112,7 @@ class XiaoDuSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_unique_id = f"{api.appliance_id}_switch"
         self._attr_name = appliance.get("friendlyName", "小度开关")
         self._attr_should_poll = False
+        self._fallback = fallback
 
         self._manufacturer = appliance.get("botName", "小度")
         self._model = appliance.get("model", "")
@@ -103,8 +124,15 @@ class XiaoDuSwitch(CoordinatorEntity, SwitchEntity):
             "identifiers": {(DOMAIN, self._appliance_id)},
             "name": self._attr_name,
             "manufacturer": self._manufacturer,
-            "model": self._model or "小度智能开关",
+            "model": self._model or ("小度设备（通用开关）" if self._fallback else "小度智能开关"),
             "via_device": (DOMAIN, "xiaodu_hub"),
+        }
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Diagnostic attributes — expose raw appliance types."""
+        return {
+            "appliance_types": getattr(self._api, "appliance_types", []),
         }
 
     @property
