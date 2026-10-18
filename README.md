@@ -183,10 +183,19 @@ xiaodu_integration/
 
 ## 更新日志
 
-### v1.1.6（2026-10-18）
+### v1.1.7（2026-10-18）
+
+- **修复：v1.1.6 通用电源开关兜底未生效** — `KNOWN_ALL_TYPES` 引用位置错误导致 switch 平台整体加载失败（`AttributeError: type object 'ApplianceTypes' has no attribute 'KNOWN_ALL_TYPES'`）；已移入 `ApplianceTypes` 类内，未映射类型设备（如扫地机）现在能正确创建通用电源开关
+
+<details>
+<summary>v1.1.6（2026-10-18）</summary>
+
+- 
 
 - **修复：勾选多个设备后部分设备不出现实体** — 设备类型不在已实现平台映射（如扫地机器人等）时会被静默跳过；本版对未映射类型的设备自动创建「通用电源开关」（所有小度设备均支持标准开关协议），保证每个勾选的设备都有实体可控制
 - **诊断：实体属性暴露原始设备类型** — 每个实体新增 `appliance_types` 属性，便于核对云端真实设备类型（后续可按类型精确扩展更多平台能力）
+
+</details>
 
 <details>
 <summary>v1.1.5（2026-10-18）</summary>

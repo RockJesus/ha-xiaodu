@@ -81,23 +81,22 @@ SENSOR_ATTRIBUTES: dict[str, tuple[str, str | None, str | None]] = {
 }
 
 
-# Union of all types handled by a dedicated platform. Devices whose types
-# match none of these are exposed as a generic power switch fallback so that
-# every selected device still shows up in Home Assistant.
-KNOWN_ALL_TYPES = (
-    LIGHT_TYPES
-    | SWITCH_TYPES
-    | COVER_TYPES
-    | CLIMATE_TYPES
-    | FAN_TYPES
-    | LOCK_TYPES
-    | BUTTON_TYPES
-    | SENSOR_CAPABLE_TYPES
-)
-
-
 class ApplianceTypes:
     """Helper class to classify XiaoDu appliances."""
+
+    # Union of all types handled by a dedicated platform. Devices whose types
+    # match none of these are exposed as a generic power switch fallback so
+    # that every selected device still shows up in Home Assistant.
+    KNOWN_ALL_TYPES = (
+        LIGHT_TYPES
+        | SWITCH_TYPES
+        | COVER_TYPES
+        | CLIMATE_TYPES
+        | FAN_TYPES
+        | LOCK_TYPES
+        | BUTTON_TYPES
+        | SENSOR_CAPABLE_TYPES
+    )
 
     @staticmethod
     def is_light(appliance_types: list[str]) -> bool:
