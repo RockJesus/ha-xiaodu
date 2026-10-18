@@ -9,6 +9,7 @@ CONF_HOUSE_NAME = "house_name"
 CONF_DEVICE_IDS = "device_ids"
 CONF_DEVICES = "devices"
 CONF_APPLIANCE_TYPES = "appliance_types"
+CONF_SCAN_INTERVAL = "scan_interval"
 
 # Login-related config keys
 CONF_LOGIN_MODE = "login_mode"
@@ -23,8 +24,8 @@ LOGIN_MODE_PASSWORD = "password"
 LOGIN_MODE_COOKIE = "cookie"
 
 # Default polling interval (seconds)
-DEFAULT_SCAN_INTERVAL = 30
-MIN_SCAN_INTERVAL = 10
+DEFAULT_SCAN_INTERVAL = 600
+MIN_SCAN_INTERVAL = 60
 
 # API endpoints
 XIAODU_HOST = "https://xiaodu.baidu.com"

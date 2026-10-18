@@ -56,16 +56,42 @@
   "options": {
     "step": {
       "init": {
-        "title": "Xiaodu Smart - Update Cookie",
-        "description": "Cookie is valid for about 180 days. Please update it here after expiration",
+        "title": "Xiaodu Smart - Options",
+        "description": "Choose an action",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "cookie": {
+        "title": "Update Cookie",
+        "description": "Cookie is valid for about 180 days. Update it here after expiration",
         "data": {
           "cookie": "New BDUSS Cookie"
+        }
+      },
+      "devices": {
+        "title": "Manage Devices",
+        "description": "Check the devices to integrate into Home Assistant (unchecking removes them from HA)",
+        "data": {
+          "device_ids": "Device List"
+        }
+      },
+      "scan_interval": {
+        "title": "Update Scan Interval",
+        "description": "Device state polling interval (seconds). Keep it above 60 seconds to reduce cloud request frequency and avoid risk control",
+        "data": {
+          "scan_interval": "Scan Interval (seconds)"
         }
       }
     },
     "error": {
       "invalid_auth": "Cookie is invalid or expired, please obtain again",
-      "cannot_connect": "Cannot connect to Xiaodu server"
+      "cannot_connect": "Cannot connect to Xiaodu server",
+      "no_device_selected": "Please select at least one device",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "no_house_found": "No home was found for this account"
     }
   }
 }

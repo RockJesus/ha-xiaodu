@@ -14,9 +14,11 @@ from .api import XiaoDuAPI
 from .const import (
     CONF_APPLIANCE_TYPES,
     CONF_COOKIE,
+    CONF_SCAN_INTERVAL,
     CONF_DEVICES,
     CONF_HOUSE_ID,
     CONF_HOUSE_NAME,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from .coordinator import XiaoDuDataUpdateCoordinator
@@ -72,8 +74,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             api.appliance_types = []
         apis[appliance_id] = api
 
-    # Create coordinator
-    coordinator = XiaoDuDataUpdateCoordinator(hass, apis)
+    # Create coordinator (scan interval configurable via options)
+    scan_interval = entry.options.get(
+        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+    )
+    coordinator = XiaoDuDataUpdateCoordinator(hass, apis, scan_interval)
     await coordinator.async_config_entry_first_refresh()
 
     # Store data

@@ -16,6 +16,7 @@ from .api import XiaoDuAPI
 from .const import (
     CONF_APPLIANCE_TYPES,
     CONF_BAIDUID,
+    CONF_SCAN_INTERVAL,
     CONF_COOKIE,
     CONF_DEVICES,
     CONF_HOUSE_ID,
@@ -23,6 +24,7 @@ from .const import (
     CONF_LOGIN_MODE,
     CONF_PASSWORD,
     CONF_USERNAME,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ERROR_CANNOT_CONNECT,
     ERROR_INVALID_AUTH,
@@ -31,6 +33,7 @@ from .const import (
     ERROR_UNKNOWN,
     LOGIN_MODE_COOKIE,
     LOGIN_MODE_PASSWORD,
+    MIN_SCAN_INTERVAL,
 )
 from .login import BaiduLogin, BaiduLoginBlocked, BaiduLoginError
 
@@ -279,16 +282,44 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class XiaoDuOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for XiaoDu — primarily cookie updates."""
+    """Handle options flow for XiaoDu — cookie, devices and scan interval."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
+        self._device_dict: dict[str, str] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Manage the options — update cookie."""
+        """Options menu — choose an action."""
+        if user_input is not None:
+            action = user_input["action"]
+            if action == "cookie":
+                return await self.async_step_cookie()
+            if action == "devices":
+                return await self.async_step_devices()
+            return await self.async_step_scan_interval()
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action"): vol.In(
+                        {
+                            "cookie": "更新 Cookie",
+                            "devices": "管理设备",
+                            "scan_interval": "修改刷新间隔",
+                        }
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_cookie(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Update the BDUSS cookie."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -314,11 +345,111 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
-            step_id="init",
+            step_id="cookie",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_COOKIE): str,
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_devices(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Re-select the devices to integrate."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            device_ids = user_input["device_ids"]
+            if not device_ids:
+                errors["base"] = "no_device_selected"
+            else:
+                session = async_get_clientsession(self.hass)
+                cookie = self.config_entry.data.get(CONF_COOKIE, "")
+                house_id = self.config_entry.data.get(CONF_HOUSE_ID, "")
+                api = XiaoDuAPI(cookie=cookie, session=session)
+                appliances = await api.get_appliances_by_ids(
+                    house_id, list(device_ids)
+                )
+                devices = []
+                appliance_types = []
+                for appliance in appliances:
+                    aid = appliance.get("applianceId", "")
+                    if aid in device_ids:
+                        devices.append({"applianceId": aid})
+                        appliance_types.append(
+                            {"applianceTypes": appliance.get("applianceTypes", [])}
+                        )
+                for did in device_ids:
+                    if not any(d["applianceId"] == did for d in devices):
+                        devices.append({"applianceId": did})
+                        appliance_types.append({"applianceTypes": []})
+
+                new_data = dict(self.config_entry.data)
+                new_data[CONF_DEVICES] = devices
+                new_data[CONF_APPLIANCE_TYPES] = appliance_types
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=new_data
+                )
+                await self.hass.config_entries.async_reload(
+                    self.config_entry.entry_id
+                )
+                return self.async_create_entry(title="", data={})
+
+        if self._device_dict is None:
+            session = async_get_clientsession(self.hass)
+            cookie = self.config_entry.data.get(CONF_COOKIE, "")
+            house_id = self.config_entry.data.get(CONF_HOUSE_ID, "")
+            api = XiaoDuAPI(cookie=cookie, session=session)
+            self._device_dict = await api.get_device_dict(house_id)
+            if not self._device_dict:
+                return self.async_abort(reason="no_house_found")
+
+        current = [
+            d.get("applianceId", "")
+            for d in self.config_entry.data.get(CONF_DEVICES, [])
+        ]
+        return self.async_show_form(
+            step_id="devices",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "device_ids", default=current
+                    ): cv.multi_select(self._device_dict),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_scan_interval(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Update the device polling interval."""
+        if user_input is not None:
+            interval = user_input[CONF_SCAN_INTERVAL]
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options={
+                    **self.config_entry.options,
+                    CONF_SCAN_INTERVAL: interval,
+                },
+            )
+            return self.async_create_entry(title="", data={})
+
+        current = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        )
+        return self.async_show_form(
+            step_id="scan_interval",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SCAN_INTERVAL, default=current
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_SCAN_INTERVAL),
+                    ),
+                }
+            ),
         )

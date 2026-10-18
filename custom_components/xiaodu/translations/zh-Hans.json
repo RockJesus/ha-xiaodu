@@ -56,16 +56,42 @@
   "options": {
     "step": {
       "init": {
-        "title": "小度智能 - 更新 Cookie",
+        "title": "小度智能 - 选项",
+        "description": "选择要执行的操作",
+        "data": {
+          "action": "操作"
+        }
+      },
+      "cookie": {
+        "title": "更新 Cookie",
         "description": "Cookie 有效期约 180 天，失效后请在此更新",
         "data": {
           "cookie": "新的 BDUSS Cookie"
+        }
+      },
+      "devices": {
+        "title": "管理设备",
+        "description": "勾选要接入 Home Assistant 的设备（取消勾选将从 HA 中移除对应设备）",
+        "data": {
+          "device_ids": "设备列表"
+        }
+      },
+      "scan_interval": {
+        "title": "修改刷新间隔",
+        "description": "设备状态刷新间隔（秒）。建议不低于 60 秒，以降低云端请求频率、避免触发风控",
+        "data": {
+          "scan_interval": "刷新间隔（秒）"
         }
       }
     },
     "error": {
       "invalid_auth": "Cookie 无效或已过期，请重新获取",
-      "cannot_connect": "无法连接到小度服务器"
+      "cannot_connect": "无法连接到小度服务器",
+      "no_device_selected": "请至少选择一个设备",
+      "unknown": "未知错误"
+    },
+    "abort": {
+      "no_house_found": "该账号下没有找到任何家庭"
     }
   }
 }
