@@ -6,11 +6,19 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import XiaoDuAPI
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .api import LoginExpired, XiaoDuAPI
+from .const import (
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
+from .login import BaiduLogin, BaiduLoginBlocked, BaiduLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,6 +31,7 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         hass: HomeAssistant,
         apis: dict[str, XiaoDuAPI],
         scan_interval: int = DEFAULT_SCAN_INTERVAL,
+        entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -32,6 +41,7 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             update_interval=timedelta(seconds=scan_interval),
         )
         self.apis = apis
+        self.entry = entry
         self._cookie_valid = True
 
     @property
@@ -48,6 +58,7 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         errors: list[str] = []
         failed: list[str] = []
 
+        login_expired = False
         for appliance_id, api in self.apis.items():
             try:
                 detail = await api.get_appliance_detail(appliance_id)
@@ -58,6 +69,15 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                     _LOGGER.debug(
                         "No data returned for appliance %s", appliance_id
                     )
+            except LoginExpired:
+                login_expired = True
+                errors.append(f"{appliance_id}: not login")
+                _LOGGER.warning(
+                    "XiaoDu session expired for %s — attempting auto relogin",
+                    appliance_id,
+                )
+                if appliance_id in self.data:
+                    results[appliance_id] = self.data[appliance_id]
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{appliance_id}: {exc}")
                 _LOGGER.debug(
@@ -96,6 +116,18 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.error("Device-list fallback failed: %s", exc)
 
+        # Session expired: try to refresh the token automatically with the
+        # stored username/password before giving up.
+        if login_expired:
+            if await self._try_relogin():
+                login_expired = False
+                _LOGGER.info("XiaoDu token refreshed automatically")
+            else:
+                raise ConfigEntryAuthFailed(
+                    "XiaoDu cookie expired and auto relogin failed — "
+                    "re-authentication required"
+                )
+
         # Check if cookie expired (all updates failing with auth error)
         if not results and errors:
             # Try a session check to determine if cookie is expired
@@ -114,6 +146,34 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
 
         self._cookie_valid = True
         return results
+
+    async def _try_relogin(self) -> bool:
+        """Relogin with stored credentials when the cookie has expired.
+
+        Returns True when every API client now has a fresh BDUSS.
+        """
+        entry = self.entry
+        if entry is None:
+            return False
+        username = entry.data.get(CONF_USERNAME, "")
+        password = entry.data.get(CONF_PASSWORD, "")
+        if not username or not password:
+            return False
+        first_api = next(iter(self.apis.values()), None)
+        if first_api is None:
+            return False
+        try:
+            client = BaiduLogin(first_api.session)
+            result = await client.login(username, password)
+        except (BaiduLoginBlocked, BaiduLoginError) as exc:
+            _LOGGER.warning("XiaoDu auto relogin failed: %s", exc)
+            return False
+        new_cookie = result.get("bduss", "")
+        if not new_cookie:
+            return False
+        for api in self.apis.values():
+            api.update_cookie(new_cookie)
+        return True
 
     def get_appliance_data(self, appliance_id: str) -> dict[str, Any] | None:
         """Get cached appliance data by ID."""

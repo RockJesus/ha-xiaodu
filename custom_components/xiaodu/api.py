@@ -21,6 +21,10 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+class LoginExpired(Exception):
+    """Raised when the stored cookie/session has expired (not login)."""
+
+
 class XiaoDuAPI:
     """API client for XiaoDu smart home platform."""
 
@@ -179,7 +183,12 @@ class XiaoDuAPI:
                 data = await resp.json()
             if data.get("status") == 0:
                 return data.get("data", {})
+            msg = str(data.get("msg", ""))
+            if msg.lower() in ("not login", "please login", "login expired"):
+                raise LoginExpired(aid)
             return {}
+        except LoginExpired:
+            raise
         except (aiohttp.ClientError, KeyError, ValueError) as exc:
             _LOGGER.error("Failed to get appliance detail for %s: %s", aid, exc)
             return {}

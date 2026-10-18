@@ -37,6 +37,13 @@
         "data": {
           "device_ids": "设备列表"
         }
+      },
+      "sms_verify": {
+        "title": "短信验证码",
+        "description": "{sent}",
+        "data": {
+          "verifycode": "短信验证码"
+        }
       }
     },
     "error": {

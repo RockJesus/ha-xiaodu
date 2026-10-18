@@ -37,6 +37,13 @@
         "data": {
           "device_ids": "Device List"
         }
+      },
+      "sms_verify": {
+        "title": "SMS verification",
+        "description": "{sent}",
+        "data": {
+          "verifycode": "SMS code"
+        }
       }
     },
     "error": {

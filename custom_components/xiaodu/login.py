@@ -102,6 +102,13 @@ class BaiduCaptchaRequired(BaiduLoginError):
 class BaiduLoginBlocked(BaiduLoginError):
     """Login was blocked by risk control (e.g. SMS verification)."""
 
+    def __init__(
+        self, message: str, verify_token: str = "", username: str = ""
+    ) -> None:
+        super().__init__(message)
+        self.verify_token = verify_token
+        self.username = username
+
 
 class BaiduLogin:
     """Baidu wappass (username/password) login client."""
@@ -306,6 +313,10 @@ class BaiduLogin:
             "password": enc_pass,
             "v2Enable": "0",
         }
+        if verifycode:
+            params["verifycode"] = verifycode
+            params["codestring"] = codestring
+
         sig = await asyncio.to_thread(self._moonshad_sig, params, now_s)
         params.update(sig)
 
@@ -333,9 +344,23 @@ class BaiduLogin:
                 "ptoken": result.get("data", {}).get("ptoken", ""),
             }
         if str(no) == "400023":
+            # Risk control demands SMS verification. Parse the verify token
+            # from the response so the config flow can dispatch an SMS and
+            # retry with the code the user enters.
+            token = ""
+            data = result.get("data", {}) or {}
+            for key in (
+                "verifyToken", "verifytoken", "verify_token", "token",
+                "codeString", "codestring",
+            ):
+                if data.get(key):
+                    token = str(data[key])
+                    break
             raise BaiduLoginBlocked(
-                "百度风控要求短信验证（400023）。请在浏览器登录一次百度账号，"
-                "复制 Cookie 中的 BAIDUID 填入本页后重试，或改用 Cookie 登录方式。"
+                "百度风控要求短信验证（400023）。已尝试发送短信验证码，"
+                "请输入收到的短信验证码完成登录。",
+                verify_token=token,
+                username=username,
             )
         if str(no) in ("340002", "500001", "500002", "50020", "50021", "50052"):
             raise BaiduCaptchaRequired(
@@ -346,6 +371,70 @@ class BaiduLogin:
         if str(no) in ("400010", "400011", "400015", "400038", "1") or "密码" in msg:
             raise BaiduLoginError("账号或密码错误")
         raise BaiduLoginError(str(msg))
+
+    async def send_sms_code(
+        self, username: str, verify_token: str, baiduid: str = ""
+    ) -> bool:
+        """Dispatch an SMS verification code for the login session.
+
+        Endpoint/parameters inferred from the Baidu passport risk-control
+        flow (no HAR available for this session); tries the wappass and the
+        passport securityv3 SMS endpoints. Returns True if Baidu accepted the
+        send request.
+        """
+        if not verify_token:
+            return False
+        attempts = [
+            (
+                f"{_WAPPASS}/wp/api/sms/send",
+                {
+                    "verifyToken": verify_token,
+                    "username": username,
+                    "type": "sms",
+                    "tpl": "wimn",
+                    "subpro": "wimn",
+                },
+            ),
+            (
+                f"{_PASSPORT}/securityv3/sms/send",
+                {
+                    "verifyToken": verify_token,
+                    "username": username,
+                    "type": "sms",
+                    "tpl": "wimn",
+                },
+            ),
+        ]
+        for url, data in attempts:
+            headers = dict(self._headers)
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            headers["Referer"] = _LOGIN_REFERER
+            if baiduid:
+                headers["Cookie"] = f"BAIDUID={baiduid}"
+            try:
+                async with self.session.post(
+                    url, data=data, headers=headers, timeout=20
+                ) as resp:
+                    text = await resp.text()
+            except aiohttp.ClientError as exc:
+                _LOGGER.debug("SMS send attempt to %s failed: %s", url, exc)
+                continue
+            try:
+                parsed = self._parse_json(text)
+            except BaiduLoginError:
+                _LOGGER.debug(
+                    "SMS send attempt to %s returned non-JSON: %.120s",
+                    url, text,
+                )
+                continue
+            for key in ("errno", "status", "code", "errorCode", "errNo"):
+                if parsed.get(key) in (0, "0"):
+                    _LOGGER.info("SMS code dispatched via %s", url)
+                    return True
+            _LOGGER.debug(
+                "SMS send attempt to %s rejected: %s", url, text[:160]
+            )
+        return False
 
     @staticmethod
     def _parse_json(text: str) -> dict[str, Any]:

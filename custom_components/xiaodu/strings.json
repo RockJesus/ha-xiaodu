@@ -37,6 +37,13 @@
         "data": {
           "device_ids": "设备列表"
         }
+      },
+      "sms_verify": {
+        "title": "短信验证码",
+        "description": "{sent}",
+        "data": {
+          "verifycode": "短信验证码"
+        }
       }
     },
     "error": {
@@ -50,7 +57,9 @@
     },
     "abort": {
       "already_configured": "该家庭已经配置过了",
-      "no_house_found": "该账号下没有找到任何家庭"
+      "no_house_found": "该账号下没有找到任何家庭",
+      "reauth_successful": "重新认证成功",
+      "reauth_aborted": "重新认证已取消"
     }
   },
   "options": {

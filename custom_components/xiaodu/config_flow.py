@@ -21,6 +21,7 @@ from .api import XiaoDuAPI
 from .const import (
     CONF_APPLIANCE_TYPES,
     CONF_BAIDUID,
+    CONF_CODESTRING,
     CONF_SCAN_INTERVAL,
     CONF_COOKIE,
     CONF_DEVICES,
@@ -29,6 +30,7 @@ from .const import (
     CONF_LOGIN_MODE,
     CONF_PASSWORD,
     CONF_USERNAME,
+    CONF_VERIFYCODE,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ERROR_CANNOT_CONNECT,
@@ -64,6 +66,11 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._device_dict: dict[str, str] | None = None
         self._login: BaiduLogin | None = None
         self._login_state: dict[str, str] = {}
+        self._reauth_entry: ConfigEntry | None = None
+        self._pending_username = ""
+        self._pending_password = ""
+        self._pending_baiduid = ""
+        self._verify_token = ""
 
     @staticmethod
     @callback
@@ -75,6 +82,17 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         (custom __init__/passing config_entry breaks initialisation).
         """
         return XiaoDuOptionsFlow()
+
+    # ── Reauth (cookie expired, auto relogin failed) ─────────────────
+
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Re-authenticate after the stored cookie expired."""
+        self._reauth_entry = self._get_reauth_entry()
+        if self._reauth_entry is None:
+            return self.async_abort(reason="reauth_aborted")
+        return await self.async_step_login()
 
     # ── Step 1: choose login method ──────────────────────────────────
 
@@ -122,12 +140,29 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 except BaiduLoginBlocked as exc:
                     _LOGGER.warning("XiaoDu password login blocked: %s", exc)
+                    if exc.verify_token:
+                        # Risk control wants SMS verification — remember the
+                        # session, try to dispatch the code, ask for it.
+                        self._pending_username = username
+                        self._pending_password = password
+                        self._pending_baiduid = baiduid
+                        self._verify_token = exc.verify_token
+                        sent = await self._login.send_sms_code(
+                            username,
+                            exc.verify_token,
+                            baiduid=baiduid,
+                        )
+                        return await self.async_step_sms_verify(
+                            sms_sent=sent
+                        )
                     errors["base"] = ERROR_LOGIN_BLOCKED
                 except BaiduLoginError as exc:
                     _LOGGER.warning("XiaoDu password login failed: %s", exc)
                     errors["base"] = ERROR_LOGIN_FAILED
                 else:
                     self._cookie = result["bduss"]
+                    if self._reauth_entry is not None:
+                        return await self._finish_reauth()
                     return await self._proceed_after_auth()
 
         return self.async_show_form(
@@ -142,6 +177,73 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={},
         )
+
+    # ── Step 2a2: SMS verification code ─────────────────────────────
+
+    async def async_step_sms_verify(
+        self,
+        user_input: dict[str, Any] | None = None,
+        sms_sent: bool | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Collect the SMS verification code and retry the login."""
+        errors: dict[str, str] = {}
+        description_placeholders: dict[str, str] = {}
+
+        if user_input is not None:
+            code = user_input.get(CONF_VERIFYCODE, "").strip()
+            if not code:
+                errors["base"] = ERROR_LOGIN_FAILED
+            else:
+                try:
+                    result = await self._login.login(
+                        self._pending_username,
+                        self._pending_password,
+                        baiduid=self._pending_baiduid,
+                        verifycode=code,
+                        codestring=self._verify_token,
+                    )
+                except BaiduLoginBlocked as exc:
+                    _LOGGER.warning("SMS verify login blocked again: %s", exc)
+                    self._verify_token = exc.verify_token or self._verify_token
+                    errors["base"] = ERROR_LOGIN_BLOCKED
+                    description_placeholders["detail"] = str(exc)
+                except BaiduLoginError as exc:
+                    _LOGGER.warning("SMS verify login failed: %s", exc)
+                    errors["base"] = ERROR_LOGIN_FAILED
+                    description_placeholders["detail"] = str(exc)
+                else:
+                    self._cookie = result["bduss"]
+                    if self._reauth_entry is not None:
+                        return await self._finish_reauth()
+                    return await self._proceed_after_auth()
+
+        placeholders = {
+            "sent": "已发送短信验证码，请查收。" if sms_sent
+            else "自动发送验证码失败，请在浏览器或小度 App 登录一次触发短信验证，再输入验证码。",
+        }
+        placeholders.update(description_placeholders)
+        return self.async_show_form(
+            step_id="sms_verify",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_VERIFYCODE): str,
+                }
+            ),
+            errors=errors,
+            description_placeholders=placeholders,
+        )
+
+    async def _finish_reauth(self) -> config_entries.ConfigFlowResult:
+        """Update the existing entry with the fresh cookie after reauth."""
+        entry = self._reauth_entry
+        if entry is None:
+            return self.async_abort(reason="reauth_aborted")
+        new_data = dict(entry.data)
+        new_data[CONF_COOKIE] = self._cookie
+        new_data[CONF_USERNAME] = self._pending_username
+        new_data[CONF_PASSWORD] = self._pending_password
+        self.hass.config_entries.async_update_entry(entry, data=new_data)
+        return self.async_abort(reason="reauth_successful")
 
     # ── Step 2b: cookie login (original flow) ────────────────────────
 

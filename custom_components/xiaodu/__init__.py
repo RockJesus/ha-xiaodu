@@ -78,7 +78,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     scan_interval = entry.options.get(
         CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
     )
-    coordinator = XiaoDuDataUpdateCoordinator(hass, apis, scan_interval)
+    coordinator = XiaoDuDataUpdateCoordinator(
+        hass, apis, scan_interval, entry=entry
+    )
     await coordinator.async_config_entry_first_refresh()
 
     # Store data
