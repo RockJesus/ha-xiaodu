@@ -46,6 +46,7 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         """
         results: dict[str, dict[str, Any]] = {}
         errors: list[str] = []
+        failed: list[str] = []
 
         for appliance_id, api in self.apis.items():
             try:
@@ -53,6 +54,7 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                 if detail and "appliance" in detail:
                     results[appliance_id] = detail
                 else:
+                    failed.append(appliance_id)
                     _LOGGER.debug(
                         "No data returned for appliance %s", appliance_id
                     )
@@ -64,6 +66,35 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                 # Keep last known good data if available
                 if appliance_id in self.data:
                     results[appliance_id] = self.data[appliance_id]
+                else:
+                    failed.append(appliance_id)
+
+        # Fallback: devices whose detail endpoint returned no data still get
+        # their info from the device list (single extra request, matched by
+        # id) so an entity can always be created and stay available.
+        if failed:
+            try:
+                first_api = next(iter(self.apis.values()))
+                devices = await first_api.get_all_appliances(
+                    first_api.house_id
+                )
+                by_id = {
+                    d.get("applianceId"): d
+                    for d in devices
+                    if d.get("applianceId")
+                }
+                for aid in failed:
+                    info = by_id.get(aid)
+                    if info:
+                        results[aid] = {"appliance": info}
+                        _LOGGER.warning(
+                            "Appliance %s detail empty — using device-list "
+                            "fallback (types: %s)",
+                            aid,
+                            info.get("applianceTypes", []),
+                        )
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.error("Device-list fallback failed: %s", exc)
 
         # Check if cookie expired (all updates failing with auth error)
         if not results and errors:

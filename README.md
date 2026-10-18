@@ -183,9 +183,18 @@ xiaodu_integration/
 
 ## 更新日志
 
-### v1.1.7（2026-10-18）
+### v1.1.8（2026-10-18）
+
+- **修复：个别设备详情接口返回空导致实体无法创建** — 设备详情（appliancedetails）无数据时，改为用设备列表数据兜底（按设备 ID 匹配），确保每个勾选的设备都能创建实体并保持可用；兜底设备会记录日志便于核对真实设备类型
+
+<details>
+<summary>v1.1.7（2026-10-18）</summary>
+
+- 
 
 - **修复：v1.1.6 通用电源开关兜底未生效** — `KNOWN_ALL_TYPES` 引用位置错误导致 switch 平台整体加载失败（`AttributeError: type object 'ApplianceTypes' has no attribute 'KNOWN_ALL_TYPES'`）；已移入 `ApplianceTypes` 类内，未映射类型设备（如扫地机）现在能正确创建通用电源开关
+
+</details>
 
 <details>
 <summary>v1.1.6（2026-10-18）</summary>
