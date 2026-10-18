@@ -60,6 +60,11 @@
         "description": "Choose an action",
         "data": {
           "action": "Action"
+        },
+        "menu_options": {
+          "cookie": "Update Cookie",
+          "devices": "Manage Devices",
+          "scan_interval": "Update Scan Interval"
         }
       },
       "cookie": {

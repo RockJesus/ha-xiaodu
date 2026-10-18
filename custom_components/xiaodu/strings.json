@@ -60,6 +60,11 @@
         "description": "选择要执行的操作",
         "data": {
           "action": "操作"
+        },
+        "menu_options": {
+          "cookie": "更新 Cookie",
+          "devices": "管理设备",
+          "scan_interval": "修改刷新间隔"
         }
       },
       "cookie": {

@@ -282,38 +282,27 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class XiaoDuOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for XiaoDu — cookie, devices and scan interval."""
+    """Handle options flow for XiaoDu — cookie, devices and scan interval.
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-        self._device_dict: dict[str, str] | None = None
+    No custom __init__: the base class manages config_entry (available after
+    initialisation, i.e. inside async_step_* via the property).
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Options menu — choose an action."""
         if user_input is not None:
-            action = user_input["action"]
+            action = user_input["next_step_id"]
             if action == "cookie":
                 return await self.async_step_cookie()
             if action == "devices":
                 return await self.async_step_devices()
             return await self.async_step_scan_interval()
 
-        return self.async_show_form(
+        return self.async_show_menu(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("action"): vol.In(
-                        {
-                            "cookie": "更新 Cookie",
-                            "devices": "管理设备",
-                            "scan_interval": "修改刷新间隔",
-                        }
-                    ),
-                }
-            ),
+            menu_options=["cookie", "devices", "scan_interval"],
         )
 
     async def async_step_cookie(
@@ -397,7 +386,7 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                 )
                 return self.async_create_entry(title="", data={})
 
-        if self._device_dict is None:
+        if getattr(self, "_device_dict", None) is None:
             session = async_get_clientsession(self.hass)
             cookie = self.config_entry.data.get(CONF_COOKIE, "")
             house_id = self.config_entry.data.get(CONF_HOUSE_ID, "")
