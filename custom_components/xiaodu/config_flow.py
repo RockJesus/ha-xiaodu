@@ -12,6 +12,11 @@ from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import config_validation as cv
 
+try:
+    import probatio  # HA 2026.10+ data entry flow schema library
+except ImportError:  # pragma: no cover - older HA
+    probatio = None
+
 from .api import XiaoDuAPI
 from .const import (
     CONF_APPLIANCE_TYPES,
@@ -63,8 +68,13 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> XiaoDuOptionsFlow:
-        """Create the options flow."""
-        return XiaoDuOptionsFlow(config_entry)
+        """Create the options flow.
+
+        Note: HA 2026.10+ OptionsFlow base class exposes ``config_entry`` as a
+        read-only property; the flow must be constructed without arguments
+        (custom __init__/passing config_entry breaks initialisation).
+        """
+        return XiaoDuOptionsFlow()
 
     # ── Step 1: choose login method ──────────────────────────────────
 
@@ -429,9 +439,19 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
         current = self.config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
-        return self.async_show_form(
-            step_id="scan_interval",
-            data_schema=vol.Schema(
+        if probatio is not None:
+            data_schema = probatio.Schema(
+                {
+                    probatio.Required(
+                        CONF_SCAN_INTERVAL, default=current
+                    ): probatio.All(
+                        probatio.Coerce(int),
+                        probatio.Range(min=MIN_SCAN_INTERVAL),
+                    ),
+                }
+            )
+        else:
+            data_schema = vol.Schema(
                 {
                     vol.Required(
                         CONF_SCAN_INTERVAL, default=current
@@ -440,5 +460,8 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                         vol.Range(min=MIN_SCAN_INTERVAL),
                     ),
                 }
-            ),
+            )
+        return self.async_show_form(
+            step_id="scan_interval",
+            data_schema=data_schema,
         )

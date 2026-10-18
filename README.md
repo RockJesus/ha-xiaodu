@@ -183,9 +183,18 @@ xiaodu_integration/
 
 ## 更新日志
 
-### v1.1.4（2026-10-18）
+### v1.1.5（2026-10-18）
+
+- **修复：选项流程打开再次 500** — 上一版移除自定义 `__init__` 后，`async_get_options_flow` 仍以 `config_entry` 参数构造选项流，与 HA 2026.10 `OptionsFlow` 基类（无参构造 + `config_entry` 只读属性）冲突触发 `TypeError`；本版改为无参构造。「修改刷新间隔」步骤的输入校验改用 HA 2026.10 新版 `probatio` schema（旧版 HA 自动回退 `voluptuous`），避免新版表单序列化失败
+
+<details>
+<summary>v1.1.4（2026-10-18）</summary>
+
+- 
 
 - **修复：选项流程在 HA 2026.10 上无法打开（500 错误）** — 重写选项流程：不再自定义 `__init__`（避免与 HA 新版 `OptionsFlow` 基类 `config_entry` 属性冲突），菜单改用 HA 标准 `async_show_menu` 实现；「更新 Cookie / 管理设备 / 修改刷新间隔」功能不变
+
+</details>
 
 <details>
 <summary>v1.1.3（2026-10-18）</summary>
