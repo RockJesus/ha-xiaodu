@@ -1,14 +1,14 @@
 {
-  "domain": "xiaodu",
-  "name": "小度智能",
-  "codeowners": [
-    "@RockJesus"
-  ],
-  "config_flow": true,
-  "documentation": "https://github.com/RockJesus/ha-xiaodu/blob/main/README.md",
-  "integration_type": "hub",
-  "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/RockJesus/ha-xiaodu/issues",
-  "requirements": [],
-  "version": "1.1.9"
+    "domain": "xiaodu",
+    "name": "小度智能",
+    "codeowners": [
+        "@RockJesus"
+    ],
+    "config_flow": true,
+    "documentation": "https://github.com/RockJesus/ha-xiaodu/blob/main/README.md",
+    "integration_type": "hub",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/RockJesus/ha-xiaodu/issues",
+    "requirements": [],
+    "version": "1.2.0"
 }

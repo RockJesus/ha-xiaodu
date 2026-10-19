@@ -76,7 +76,10 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                     "XiaoDu session expired for %s — attempting auto relogin",
                     appliance_id,
                 )
-                if appliance_id in self.data:
+                # Guard against self.data being None during the first refresh
+                # (hacs review 2026-10-18) — a TypeError inside the except
+                # handler would mask the real error.
+                if self.data and appliance_id in self.data:
                     results[appliance_id] = self.data[appliance_id]
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{appliance_id}: {exc}")
@@ -84,7 +87,7 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                     "Error updating appliance %s: %s", appliance_id, exc
                 )
                 # Keep last known good data if available
-                if appliance_id in self.data:
+                if self.data and appliance_id in self.data:
                     results[appliance_id] = self.data[appliance_id]
                 else:
                     failed.append(appliance_id)

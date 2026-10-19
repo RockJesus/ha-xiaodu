@@ -88,11 +88,16 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Re-authenticate after the stored cookie expired."""
+        """Re-authenticate after the stored cookie expired.
+
+        Offer the same login-method choice as the initial flow so users who
+        originally set up with a cookie get a cookie step too (hacs review
+        2026-10-18).
+        """
         self._reauth_entry = self._get_reauth_entry()
         if self._reauth_entry is None:
             return self.async_abort(reason="reauth_aborted")
-        return await self.async_step_login()
+        return await self.async_step_user()
 
     # ── Step 1: choose login method ──────────────────────────────────
 
@@ -129,6 +134,11 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             username = user_input[CONF_USERNAME].strip()
             password = user_input[CONF_PASSWORD]
             baiduid = user_input.get(CONF_BAIDUID, "").strip()
+            # Remember credentials for entry creation and auto relogin —
+            # always, not only on the SMS branch (hacs review 2026-10-18).
+            self._pending_username = username
+            self._pending_password = password
+            self._pending_baiduid = baiduid
             if not username or not password:
                 errors["base"] = ERROR_LOGIN_FAILED
             else:
@@ -143,9 +153,6 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     if exc.verify_token:
                         # Risk control wants SMS verification — remember the
                         # session, try to dispatch the code, ask for it.
-                        self._pending_username = username
-                        self._pending_password = password
-                        self._pending_baiduid = baiduid
                         self._verify_token = exc.verify_token
                         sent = await self._login.send_sms_code(
                             username,
@@ -234,14 +241,21 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _finish_reauth(self) -> config_entries.ConfigFlowResult:
-        """Update the existing entry with the fresh cookie after reauth."""
+        """Update the existing entry with the fresh cookie after reauth.
+
+        Only overwrite username/password when they were actually provided
+        (password-mode reauth); a cookie-mode reauth must keep the stored
+        credentials untouched.
+        """
         entry = self._reauth_entry
         if entry is None:
             return self.async_abort(reason="reauth_aborted")
         new_data = dict(entry.data)
         new_data[CONF_COOKIE] = self._cookie
-        new_data[CONF_USERNAME] = self._pending_username
-        new_data[CONF_PASSWORD] = self._pending_password
+        if self._pending_username:
+            new_data[CONF_USERNAME] = self._pending_username
+        if self._pending_password:
+            new_data[CONF_PASSWORD] = self._pending_password
         self.hass.config_entries.async_update_entry(entry, data=new_data)
         return self.async_abort(reason="reauth_successful")
 
@@ -268,6 +282,10 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = ERROR_UNKNOWN
             else:
                 self._cookie = cookie
+                if self._reauth_entry is not None:
+                    # Cookie reauth: refresh the stored cookie on the existing
+                    # entry (username/password, if any, are kept untouched).
+                    return await self._finish_reauth()
                 return await self._proceed_after_auth()
 
         return self.async_show_form(
@@ -378,6 +396,10 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_HOUSE_NAME: self._house_name,
                     CONF_DEVICES: devices,
                     CONF_APPLIANCE_TYPES: appliance_types,
+                    # Store credentials for automatic relogin (hacs review
+                    # 2026-10-18); empty for cookie-mode setup.
+                    CONF_USERNAME: self._pending_username,
+                    CONF_PASSWORD: self._pending_password,
                 },
             )
 

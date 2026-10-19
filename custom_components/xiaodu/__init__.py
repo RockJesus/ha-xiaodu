@@ -9,6 +9,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 
 from .api import XiaoDuAPI
 from .const import (
@@ -92,6 +93,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "house_name": entry.data.get(CONF_HOUSE_NAME, ""),
         "appliance_types": appliance_types,
     }
+
+    # Register the hub device before forwarding platforms: every entity uses
+    # via_device=(DOMAIN, "xiaodu_hub"), and HA treats a non-existing
+    # via_device as unsupported (hacs review 2026-10-18).
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "xiaodu_hub")},
+        manufacturer="Baidu",
+        name="小度智能家居",
+        model="小度 Hub",
+    )
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
