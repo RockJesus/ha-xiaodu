@@ -1,8 +1,20 @@
 # 小度智能 Home Assistant 集成
 
-将百度小度生态中的智能设备反向接入 Home Assistant，支持在 HA 中统一控制小度音箱、小度 APP 中绑定的所有智能家居设备（包括第三方设备）。
+将百度小度生态中的智能设备**反向接入 Home Assistant**，在 HA 中统一控制小度音箱、小度 APP 中绑定的所有智能家居设备（包括第三方设备）。
 
-## 功能特性
+<div align="center">
+
+[![HACS 官方收录](https://img.shields.io/badge/HACS-官方收录-41BDF5.svg)](https://github.com/hacs/default)
+[![最新版本](https://img.shields.io/github/v/release/RockJesus/ha-xiaodu)](https://github.com/RockJesus/ha-xiaodu/releases/latest)
+[![GitHub 下载量](https://img.shields.io/github/downloads/RockJesus/ha-xiaodu/total)](https://github.com/RockJesus/ha-xiaodu/releases)
+[![HA 版本](https://img.shields.io/badge/Home%20Assistant-2024.1.0%2B-blue)](https://www.home-assistant.io/)
+[![许可证](https://img.shields.io/github/license/RockJesus/ha-xiaodu)](LICENSE)
+
+</div>
+
+---
+
+## ✨ 功能特性
 
 - **Config Flow 可视化配置** — 无需编辑 YAML，在 HA 界面中完成全部配置
 - **两种登录方式** — 支持**百度账号用户名密码登录**（按真实 wappass 登录协议自动完成，可填写 BAIDUID 提升成功率）与 **BDUSS Cookie 登录**
@@ -19,15 +31,25 @@
 - **Cookie 在线更新** — Cookie 过期后可在集成选项中直接更新，无需删除重配
 - **晾衣架多面板支持** — 自动识别晾衣架的功能面板，创建独立开关和按钮实体
 
-## 支持的 HA 版本
+---
 
-Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core 均可）
+## 📦 安装方法
 
-## 安装方法
+### 方法一：通过 HACS 安装（推荐）
 
-### 方法一：手动安装（推荐）
+本集成已收录于 **HACS 官方默认仓库**，点击下方按钮即可在你的 Home Assistant 中直接打开 HACS 并一键安装：
+
+[![在 HACS 中打开](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=RockJesus&repository=ha-xiaodu&category=integration)
+
+> 按钮无法使用？也可手动操作：HACS → 集成 → 搜索「**小度智能**」→ 安装 → 重启 Home Assistant。
+
+### 方法二：手动安装
+
+<details>
+<summary>展开手动安装步骤</summary>
 
 1. 将 `custom_components/xiaodu` 文件夹复制到你的 HA 配置目录下：
+
    ```
    config/
    └── custom_components/
@@ -54,13 +76,16 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 
 2. 重启 Home Assistant
 
-### 方法二：HACS 安装
+</details>
 
-1. 在 HACS 中添加自定义仓库：https://github.com/RockJesus/ha-xiaodu ，类别选择「集成」
-2. 在 HACS 集成列表中搜索「小度智能」并安装
-3. 重启 Home Assistant
+### ⚙️ 环境要求
 
-## 配置步骤
+> [!IMPORTANT]
+> 需要 **Home Assistant 2024.1.0 及以上版本**（HAOS / Supervised / Container / Core 均可）。
+
+---
+
+## 🚀 配置步骤
 
 ### 第一步：添加集成并登录
 
@@ -73,7 +98,8 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 3. **（可选，强烈建议）填写 BAIDUID**：在浏览器访问 `baidu.com` 后，按 `F12` 打开开发者工具 → 「应用程序」(Application) → Cookie → 复制 `BAIDUID` 字段的值（形如 `XXXX...:FG=1`）粘贴到「BAIDUID（可选）」输入框。填写后可显著提升成功率，避免百度风控的短信验证拦截
 4. 登录成功后自动继续下一步
 
-> **注意**：用户名密码登录按百度 wappass 网页登录真实协议实现（RSA 加密 + 风控签名）。百度对登录有风控：若提示「百度风控要求验证」，请填写有效的 BAIDUID 后重试，或改用方式 B 的 Cookie 登录。
+> [!NOTE]
+> 用户名密码登录按百度 wappass 网页登录真实协议实现（RSA 加密 + 风控签名）。百度对登录有风控：若提示「百度风控要求验证」，请填写有效的 BAIDUID 后重试，或改用方式 B 的 Cookie 登录。
 
 **方式 B：BDUSS Cookie 登录**
 
@@ -85,7 +111,8 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 6. 在右侧表格中找到 `BDUSS` 字段，复制其完整值（很长的一串字符）
 7. 在集成中选择「Cookie 登录」，粘贴刚才复制的 `BDUSS` Cookie 值，点击提交
 
-> **注意**：Cookie 有效期约 180 天，过期后设备会变为不可用状态，需重新获取并在集成选项中更新。
+> [!NOTE]
+> Cookie 有效期约 180 天，过期后设备会变为不可用状态，需重新获取并在集成选项中更新。
 
 ### 第二步：选择家庭与设备
 
@@ -99,7 +126,9 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 2. 点击「配置」按钮
 3. 输入新的 BDUSS Cookie，提交即可
 
-## 工作原理
+---
+
+## 🔧 工作原理
 
 本集成通过百度小度开放平台的 Web API 与小度云端通信：
 
@@ -110,7 +139,9 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 
 所有设备状态通过 `DataUpdateCoordinator` 每 30 秒统一轮询一次。
 
-## 已知限制
+---
+
+## ⚠️ 已知限制
 
 1. **Cookie 会过期** — 约 180 天有效期，需手动更新
 2. **状态同步延迟** — 在小度 APP 或其他平台中操作设备后，HA 中的状态最多有 30 秒延迟（受轮询间隔限制）
@@ -119,7 +150,9 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 5. **空调直接设温兼容性** — 部分品牌空调可能不支持直接设定温度，会自动回退到逐度加减的方式
 6. **用户名密码登录可能触发风控** — 百度对登录请求有风控，无有效 BAIDUID 时可能要求短信验证（400023）；填写 BAIDUID 或改用 Cookie 登录可绕过
 
-## 故障排查
+---
+
+## 🛠 故障排查
 
 ### 设备显示为「不可用」
 
@@ -151,7 +184,9 @@ Home Assistant 2024.1.0 及以上版本（HAOS / Supervised / Container / Core �
 - 部分品牌空调仅支持逐度加减，集成会自动计算差值并连续发送加减指令
 - 如果设定后温度偏差较大，可能是空调本身的反馈延迟，等待一次轮询后状态会同步
 
-## 文件结构
+---
+
+## 📁 文件结构
 
 ```
 xiaodu_integration/
@@ -181,11 +216,20 @@ xiaodu_integration/
 └── README.md                    # 本文档
 ```
 
-## 更新日志
+---
 
-### v1.3.1（2026-10-20）
+## 📜 更新日志
+
+### v1.3.2（2026-10-20）
+
+- **安装方式升级** — 集成已收录于 **HACS 官方默认仓库**，安装方法改为官方一键跳转按钮（my.home-assistant.io），并新增环境要求提示框；README 全面美化并折叠全部历史版本日志
+
+<details>
+<summary>v1.3.1（2026-10-20）</summary>
 
 - **修复：配置流程 `async_abort` 覆写方式错误导致流程崩溃（HACS 审核反馈）** — 此前把 HA 的同步方法 `FlowHandler.async_abort` 错误地覆写为 `async def`，导致 abort 调用处返回协程而非流程结果（`reauth_successful` 保存 Cookie 后报错、`no_house_found`/`reauth_aborted` 提示无法显示）；本版删除两处覆写，改为在同步回调 `async_remove` 中通过 `hass.async_create_task` 关闭流程专用会话，`async_create_entry` 前的显式关闭保留不变
+
+</details>
 
 <details>
 <summary>v1.3.0（2026-10-20）</summary>
@@ -205,16 +249,17 @@ xiaodu_integration/
 
 </details>
 
-### v1.1.9（2026-10-18）
+<details>
+<summary>v1.1.9（2026-10-18）</summary>
 
 - **用户名密码登录支持短信验证码** — 登录触发百度风控短信验证（400023）时，自动尝试发送短信验证码，新增"短信验证码"输入步骤，输入验证码后自动完成登录（不再依赖手动填写 BAIDUID/Cookie）
 - **令牌自动刷新** — Cookie/会话过期时自动用已保存的用户名密码重新登录并更新令牌，无需手动干预；自动重登失败（如再次要求验证码）会提示重新认证
 - **重新认证（reauth）** — 令牌过期且自动刷新失败时，集成自动弹出重新认证流程，登录成功后原地更新配置，设备与实体全部保留
 
+</details>
+
 <details>
 <summary>v1.1.8（2026-10-18）</summary>
-
-- 
 
 - **修复：个别设备详情接口返回空导致实体无法创建** — 设备详情（appliancedetails）无数据时，改为用设备列表数据兜底（按设备 ID 匹配），确保每个勾选的设备都能创建实体并保持可用；兜底设备会记录日志便于核对真实设备类型
 
@@ -223,16 +268,12 @@ xiaodu_integration/
 <details>
 <summary>v1.1.7（2026-10-18）</summary>
 
-- 
-
 - **修复：v1.1.6 通用电源开关兜底未生效** — `KNOWN_ALL_TYPES` 引用位置错误导致 switch 平台整体加载失败（`AttributeError: type object 'ApplianceTypes' has no attribute 'KNOWN_ALL_TYPES'`）；已移入 `ApplianceTypes` 类内，未映射类型设备（如扫地机）现在能正确创建通用电源开关
 
 </details>
 
 <details>
 <summary>v1.1.6（2026-10-18）</summary>
-
-- 
 
 - **修复：勾选多个设备后部分设备不出现实体** — 设备类型不在已实现平台映射（如扫地机器人等）时会被静默跳过；本版对未映射类型的设备自动创建「通用电源开关」（所有小度设备均支持标准开关协议），保证每个勾选的设备都有实体可控制
 - **诊断：实体属性暴露原始设备类型** — 每个实体新增 `appliance_types` 属性，便于核对云端真实设备类型（后续可按类型精确扩展更多平台能力）
@@ -242,16 +283,12 @@ xiaodu_integration/
 <details>
 <summary>v1.1.5（2026-10-18）</summary>
 
-- 
-
 - **修复：选项流程打开再次 500** — 上一版移除自定义 `__init__` 后，`async_get_options_flow` 仍以 `config_entry` 参数构造选项流，与 HA 2026.10 `OptionsFlow` 基类（无参构造 + `config_entry` 只读属性）冲突触发 `TypeError`；本版改为无参构造。「修改刷新间隔」步骤的输入校验改用 HA 2026.10 新版 `probatio` schema（旧版 HA 自动回退 `voluptuous`），避免新版表单序列化失败
 
 </details>
 
 <details>
 <summary>v1.1.4（2026-10-18）</summary>
-
-- 
 
 - **修复：选项流程在 HA 2026.10 上无法打开（500 错误）** — 重写选项流程：不再自定义 `__init__`（避免与 HA 新版 `OptionsFlow` 基类 `config_entry` 属性冲突），菜单改用 HA 标准 `async_show_menu` 实现；「更新 Cookie / 管理设备 / 修改刷新间隔」功能不变
 
@@ -293,12 +330,14 @@ xiaodu_integration/
 
 </details>
 
-## 致谢
+---
+
+## ❤️ 致谢
 
 本集成参考了以下开源项目的实现思路：
 - [hass_xiaodu](https://github.com/2331892928/hass_xiaodu)
 - [hass-xiaodu](https://github.com/linrol/hass-xiaodu)
 
-## 许可证
+## 📄 许可证
 
 MIT License
