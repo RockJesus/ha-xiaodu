@@ -125,6 +125,33 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             if await self._try_relogin():
                 login_expired = False
                 _LOGGER.info("XiaoDu token refreshed automatically")
+                # Retry the failed devices once with the fresh cookie so we
+                # return live data instead of raising UpdateFailed (hacs
+                # review 2026-10-20).
+                for appliance_id, api in self.apis.items():
+                    if appliance_id in results:
+                        continue
+                    try:
+                        detail = await api.get_appliance_detail(appliance_id)
+                        if detail and "appliance" in detail:
+                            results[appliance_id] = detail
+                            _LOGGER.debug(
+                                "Retry after relogin OK for %s", appliance_id
+                            )
+                        else:
+                            failed.append(appliance_id)
+                    except LoginExpired:
+                        errors.append(
+                            f"{appliance_id}: not login (after relogin)"
+                        )
+                        if self.data and appliance_id in self.data:
+                            results[appliance_id] = self.data[appliance_id]
+                    except Exception as exc:  # noqa: BLE001
+                        errors.append(f"{appliance_id}: {exc}")
+                        if self.data and appliance_id in self.data:
+                            results[appliance_id] = self.data[appliance_id]
+                        else:
+                            failed.append(appliance_id)
             else:
                 raise ConfigEntryAuthFailed(
                     "XiaoDu cookie expired and auto relogin failed — "
@@ -176,6 +203,15 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             return False
         for api in self.apis.values():
             api.update_cookie(new_cookie)
+        # Persist the fresh cookie into the config entry so it survives a
+        # restart / entry reload (hacs review 2026-10-20): async_setup_entry
+        # rebuilds the API clients from entry.data[CONF_COOKIE] every time,
+        # so an in-memory-only cookie would be lost and every retry after a
+        # restart would log in again with the stale cookie forever.
+        if new_cookie != entry.data.get(CONF_COOKIE):
+            new_data = dict(entry.data)
+            new_data[CONF_COOKIE] = new_cookie
+            self.hass.config_entries.async_update_entry(entry, data=new_data)
         return True
 
     def get_appliance_data(self, appliance_id: str) -> dict[str, Any] | None:

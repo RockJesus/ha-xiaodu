@@ -7,7 +7,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
@@ -50,7 +50,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up XiaoDu from a config entry."""
-    session = async_get_clientsession(hass)
+    # Dedicated aiohttp session per config entry (hacs review 2026-10-20):
+    # the shared async_get_clientsession has one cookie jar for the whole of
+    # HA, so Baidu cookies would cross over with other entries/integrations.
+    session = async_create_clientsession(hass)
     cookie = entry.data.get(CONF_COOKIE, "")
     house_id = entry.data.get(CONF_HOUSE_ID, "")
     devices = entry.data.get(CONF_DEVICES, [])
@@ -88,6 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "apis": apis,
         "coordinator": coordinator,
+        "session": session,
         "cookie": cookie,
         "house_id": house_id,
         "house_name": entry.data.get(CONF_HOUSE_NAME, ""),
@@ -119,7 +123,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a XiaoDu config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
+        data = hass.data[DOMAIN].pop(entry.entry_id, None)
+        # Close the per-entry session to release the connection pool.
+        session = data.get("session") if data else None
+        if session is not None:
+            await session.close()
     return unload_ok
 
 

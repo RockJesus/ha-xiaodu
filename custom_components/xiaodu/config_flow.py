@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers import config_validation as cv
 
 try:
@@ -71,6 +72,31 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._pending_password = ""
         self._pending_baiduid = ""
         self._verify_token = ""
+        # Dedicated aiohttp session for this flow (hacs review 2026-10-20):
+        # never use HA's shared async_get_clientsession — its cookie jar is
+        # shared with the whole instance and accounts would cross over.
+        self._session: aiohttp.ClientSession | None = None
+
+    def _get_session(self) -> aiohttp.ClientSession:
+        """Get (or lazily create) this flow's dedicated aiohttp session."""
+        if self._session is None or self._session.closed:
+            self._session = async_create_clientsession(self.hass)
+        return self._session
+
+    async def _close_session(self) -> None:
+        """Close the flow's dedicated session if it exists."""
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+        self._session = None
+
+    async def async_abort(
+        self, *, reason: str, description_placeholders: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Abort the flow and release the dedicated session."""
+        await self._close_session()
+        return await super().async_abort(
+            reason=reason, description_placeholders=description_placeholders
+        )
 
     @staticmethod
     @callback
@@ -142,7 +168,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not username or not password:
                 errors["base"] = ERROR_LOGIN_FAILED
             else:
-                session = async_get_clientsession(self.hass)
+                session = self._get_session()
                 self._login = BaiduLogin(session)
                 try:
                     result = await self._login.login(
@@ -269,7 +295,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             cookie = user_input[CONF_COOKIE].strip()
-            session = async_get_clientsession(self.hass)
+            session = self._get_session()
             api = XiaoDuAPI(cookie=cookie, session=session)
 
             valid, error = await api.check_session()
@@ -308,7 +334,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """After auth (cookie obtained), load houses and continue."""
         assert self._cookie is not None
-        session = async_get_clientsession(self.hass)
+        session = self._get_session()
         api = XiaoDuAPI(cookie=self._cookie, session=session)
         self._house_list = await api.get_house_list()
         if not self._house_list:
@@ -326,7 +352,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._house_id = user_input[CONF_HOUSE_ID]
             self._house_name = self._house_list.get(self._house_id, "")
-            session = async_get_clientsession(self.hass)
+            session = self._get_session()
             api = XiaoDuAPI(cookie=self._cookie, session=session)
             self._device_dict = await api.get_device_dict(self._house_id)
             if not self._device_dict:
@@ -366,7 +392,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
             # Fetch appliance types for selected devices
-            session = async_get_clientsession(self.hass)
+            session = self._get_session()
             api = XiaoDuAPI(cookie=self._cookie, session=session)
             appliances = await api.get_appliances_by_ids(
                 self._house_id, list(device_ids)
@@ -388,6 +414,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     devices.append({"applianceId": did})
                     appliance_types.append({"applianceTypes": []})
 
+            await self._close_session()
             return self.async_create_entry(
                 title=f"小度: {self._house_name}",
                 data={
@@ -422,6 +449,32 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
     initialisation, i.e. inside async_step_* via the property).
     """
 
+    def __init__(self) -> None:
+        """Initialize the options flow with a dedicated aiohttp session."""
+        self._device_dict: dict[str, str] | None = None
+        self._session: aiohttp.ClientSession | None = None
+
+    def _get_session(self) -> aiohttp.ClientSession:
+        """Get (or lazily create) this options flow's dedicated session."""
+        if self._session is None or self._session.closed:
+            self._session = async_create_clientsession(self.hass)
+        return self._session
+
+    async def _close_session(self) -> None:
+        """Close the dedicated session if it exists."""
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+        self._session = None
+
+    async def async_abort(
+        self, *, reason: str, description_placeholders: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Abort the flow and release the dedicated session."""
+        await self._close_session()
+        return await super().async_abort(
+            reason=reason, description_placeholders=description_placeholders
+        )
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
@@ -447,7 +500,7 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
 
         if user_input is not None:
             cookie = user_input[CONF_COOKIE].strip()
-            session = async_get_clientsession(self.hass)
+            session = self._get_session()
             api = XiaoDuAPI(cookie=cookie, session=session)
 
             valid, error = await api.check_session()
@@ -465,6 +518,7 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
+                await self._close_session()
                 return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
@@ -488,7 +542,7 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
             if not device_ids:
                 errors["base"] = "no_device_selected"
             else:
-                session = async_get_clientsession(self.hass)
+                session = self._get_session()
                 cookie = self.config_entry.data.get(CONF_COOKIE, "")
                 house_id = self.config_entry.data.get(CONF_HOUSE_ID, "")
                 api = XiaoDuAPI(cookie=cookie, session=session)
@@ -515,13 +569,14 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
+                await self._close_session()
                 await self.hass.config_entries.async_reload(
                     self.config_entry.entry_id
                 )
                 return self.async_create_entry(title="", data={})
 
         if getattr(self, "_device_dict", None) is None:
-            session = async_get_clientsession(self.hass)
+            session = self._get_session()
             cookie = self.config_entry.data.get(CONF_COOKIE, "")
             house_id = self.config_entry.data.get(CONF_HOUSE_ID, "")
             api = XiaoDuAPI(cookie=cookie, session=session)
