@@ -89,14 +89,16 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self._session.close()
         self._session = None
 
-    async def async_abort(
-        self, *, reason: str, description_placeholders: dict | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Abort the flow and release the dedicated session."""
-        await self._close_session()
-        return await super().async_abort(
-            reason=reason, description_placeholders=description_placeholders
-        )
+    def async_remove(self) -> None:
+        """Close the flow's dedicated session when the flow ends.
+
+        Note: FlowHandler.async_abort is synchronous in HA and must not be
+        overridden as async (hacs review 2026-10-20); session cleanup belongs
+        in this synchronous callback instead.
+        """
+        if self._session is not None and not self._session.closed:
+            self.hass.async_create_task(self._session.close())
+        self._session = None
 
     @staticmethod
     @callback
@@ -466,14 +468,16 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
             await self._session.close()
         self._session = None
 
-    async def async_abort(
-        self, *, reason: str, description_placeholders: dict | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Abort the flow and release the dedicated session."""
-        await self._close_session()
-        return await super().async_abort(
-            reason=reason, description_placeholders=description_placeholders
-        )
+    def async_remove(self) -> None:
+        """Close the dedicated session when the options flow ends.
+
+        Note: FlowHandler.async_abort is synchronous in HA and must not be
+        overridden as async (hacs review 2026-10-20); session cleanup belongs
+        in this synchronous callback instead.
+        """
+        if self._session is not None and not self._session.closed:
+            self.hass.async_create_task(self._session.close())
+        self._session = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

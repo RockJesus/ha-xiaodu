@@ -183,10 +183,17 @@ xiaodu_integration/
 
 ## 更新日志
 
-### v1.3.0（2026-10-20）
+### v1.3.1（2026-10-20）
+
+- **修复：配置流程 `async_abort` 覆写方式错误导致流程崩溃（HACS 审核反馈）** — 此前把 HA 的同步方法 `FlowHandler.async_abort` 错误地覆写为 `async def`，导致 abort 调用处返回协程而非流程结果（`reauth_successful` 保存 Cookie 后报错、`no_house_found`/`reauth_aborted` 提示无法显示）；本版删除两处覆写，改为在同步回调 `async_remove` 中通过 `hass.async_create_task` 关闭流程专用会话，`async_create_entry` 前的显式关闭保留不变
+
+<details>
+<summary>v1.3.0（2026-10-20）</summary>
 
 - **修复：每个配置条目使用独立网络会话（HACS 审核反馈）** — 此前集成复用 Home Assistant 全局共享会话，多个账号/多个配置条目的百度 Cookie 会相互串扰；本版改为每个配置条目独立创建 aiohttp 会话（`async_create_clientsession`），配置流程与选项流程内也使用各自独立会话，互不影响
 - **修复：自动重登结果未持久化，重启后反复登录失败（HACS 审核反馈）** — 自动重登成功后仅更新内存中的 Cookie，重启或重载配置后仍用过期 Cookie 重新登录、永远无法恢复；本版重登成功后把新 Cookie 写回配置条目（`async_update_entry`），并立即用新 Cookie 重试设备请求返回实时数据，不再抛更新失败
+
+</details>
 
 <details>
 <summary>v1.2.0（2026-10-19）</summary>
