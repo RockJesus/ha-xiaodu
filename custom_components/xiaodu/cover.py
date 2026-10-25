@@ -31,6 +31,7 @@ async def async_setup_entry(
     entry_data = hass.data[DOMAIN][config_entry.entry_id]
     apis: dict[str, XiaoDuAPI] = entry_data["apis"]
     coordinator: XiaoDuDataUpdateCoordinator = entry_data["coordinator"]
+    hub_device_id = entry_data["hub_device_id"]
 
     entities = []
     for appliance_id, api in apis.items():
@@ -42,7 +43,7 @@ async def async_setup_entry(
         if not appliance:
             continue
 
-        entities.append(XiaoDuCover(api, coordinator, appliance))
+        entities.append(XiaoDuCover(api, coordinator, hub_device_id, appliance))
 
     async_add_entities(entities)
 
@@ -54,10 +55,12 @@ class XiaoDuCover(CoordinatorEntity, CoverEntity):
         self,
         api: XiaoDuAPI,
         coordinator: XiaoDuDataUpdateCoordinator,
+        hub_device_id: str,
         appliance: dict[str, Any],
     ) -> None:
         """Initialize the cover."""
         super().__init__(coordinator)
+        self._hub_device_id = hub_device_id
         self._api = api
         self._appliance_id = api.appliance_id
         self._attr_unique_id = f"{api.appliance_id}_cover"
@@ -82,7 +85,7 @@ class XiaoDuCover(CoordinatorEntity, CoverEntity):
             "name": self._attr_name,
             "manufacturer": self._manufacturer,
             "model": self._model or "小度智能窗帘",
-            "via_device": (DOMAIN, "xiaodu_hub"),
+            "via_device_id": self._hub_device_id,
         }
 
     @property

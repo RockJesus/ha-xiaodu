@@ -32,6 +32,7 @@ async def async_setup_entry(
     entry_data = hass.data[DOMAIN][config_entry.entry_id]
     apis: dict[str, XiaoDuAPI] = entry_data["apis"]
     coordinator: XiaoDuDataUpdateCoordinator = entry_data["coordinator"]
+    hub_device_id = entry_data["hub_device_id"]
 
     entities = []
     for appliance_id, api in apis.items():
@@ -50,6 +51,7 @@ async def async_setup_entry(
                     XiaoDuSensor(
                         api,
                         coordinator,
+                        hub_device_id,
                         appliance_id,
                         base_name,
                         manufacturer,
@@ -70,6 +72,7 @@ class XiaoDuSensor(CoordinatorEntity, SensorEntity):
         self,
         api: XiaoDuAPI,
         coordinator: XiaoDuDataUpdateCoordinator,
+        hub_device_id: str,
         appliance_id: str,
         base_name: str,
         manufacturer: str,
@@ -80,6 +83,7 @@ class XiaoDuSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+        self._hub_device_id = hub_device_id
         self._api = api
         self._appliance_id = appliance_id
         self._sensor_key = sensor_key
@@ -107,7 +111,7 @@ class XiaoDuSensor(CoordinatorEntity, SensorEntity):
             "identifiers": {(DOMAIN, self._appliance_id)},
             "name": self._base_name,
             "manufacturer": self._manufacturer,
-            "via_device": (DOMAIN, "xiaodu_hub"),
+            "via_device_id": self._hub_device_id,
         }
 
     @property

@@ -99,16 +99,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Register the hub device before forwarding platforms: every entity uses
-    # via_device=(DOMAIN, "xiaodu_hub"), and HA treats a non-existing
-    # via_device as unsupported (hacs review 2026-10-18).
+    # via_device_id=<hub device id> to attach to the hub. via_device (tuple
+    # form) is deprecated since HA 2026.10 and removed in 2027.8.
     device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
+    hub_device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "xiaodu_hub")},
         manufacturer="Baidu",
         name="小度智能家居",
         model="小度 Hub",
     )
+    entry_data["hub_device_id"] = hub_device.id
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
