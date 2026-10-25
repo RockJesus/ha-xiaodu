@@ -109,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name="小度智能家居",
         model="小度 Hub",
     )
-    entry_data["hub_device_id"] = hub_device.id
+    hass.data[DOMAIN][entry.entry_id]["hub_device_id"] = hub_device.id
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

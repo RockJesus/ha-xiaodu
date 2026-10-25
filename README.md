@@ -219,9 +219,16 @@ xiaodu_integration/
 
 ## 📜 更新日志
 
-### v1.3.4（2026-10-26）
+### v1.3.5（2026-10-26）
+
+- **修复 v1.3.4 的 setup 崩溃** — 修正 hub 设备 id 写入方式（此前误用未定义变量导致集成启动失败，升级 v1.3.5 后恢复正常）
+
+<details>
+<summary>v1.3.4（2026-10-26）</summary>
 
 - **修复 HA 2026.10 废弃 API 警告** — 实体设备注册改用 `via_device_id` 替代废弃的 `via_device` 参数（HA 2027.8 将移除，提前适配），消除 `Detected ... deprecated via_device parameter` 日志告警
+
+</details>
 
 <details>
 <summary>v1.3.3（2026-10-22）</summary>
