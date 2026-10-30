@@ -221,10 +221,21 @@ xiaodu_integration/
 
 ## 📜 更新日志
 
-### v1.3.7（2026-10-30）
+
+
+### v1.3.8（2026-10-30）
+
+- **修复 switch 平台 setup 崩溃** — 用 `entity_registry.async_get(hass)` 替代已移除的 `hass.helpers`（HA 2026.10 移除该属性），开关平台恢复正常加载
+- **修复 session 关闭警告** — 移除集成中对 `async_create_clientsession` 会话的手动 `close()`（HA 自动清理），消除 "closes the Home Assistant aiohttp session" 弃用警告
+
+<details>
+<summary>v1.3.7（2026-10-30）</summary>
+
 
 - **修复扫地机状态属性** — vacuum 实体改用 HA 2026.10 `VacuumActivity` 枚举（`activity` 属性），此前使用旧版 `STATE_*` 字符串常量导致实体不可用（unavailable）
 
+
+</details>
 <details>
 <summary>v1.3.6（2026-10-30）</summary>
 

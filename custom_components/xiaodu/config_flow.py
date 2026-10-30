@@ -83,21 +83,23 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._session = async_create_clientsession(self.hass)
         return self._session
 
-    async def _close_session(self) -> None:
-        """Close the flow's dedicated session if it exists."""
-        if self._session is not None and not self._session.closed:
-            await self._session.close()
+    def _close_session(self) -> None:
+        """Drop the flow's dedicated session reference.
+
+        The session must NOT be closed manually — async_create_clientsession
+        registers auto-cleanup (detached on homeassistant_stop / entry
+        unload), and closing it triggers the deprecated-frame warning
+        "closes the Home Assistant aiohttp session".
+        """
         self._session = None
 
     def async_remove(self) -> None:
-        """Close the flow's dedicated session when the flow ends.
+        """Drop the flow's dedicated session when the flow ends.
 
         Note: FlowHandler.async_abort is synchronous in HA and must not be
         overridden as async (hacs review 2026-10-20); session cleanup belongs
         in this synchronous callback instead.
         """
-        if self._session is not None and not self._session.closed:
-            self.hass.async_create_task(self._session.close())
         self._session = None
 
     @staticmethod
@@ -416,7 +418,7 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     devices.append({"applianceId": did})
                     appliance_types.append({"applianceTypes": []})
 
-            await self._close_session()
+            self._close_session()
             return self.async_create_entry(
                 title=f"小度: {self._house_name}",
                 data={
@@ -462,21 +464,18 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
             self._session = async_create_clientsession(self.hass)
         return self._session
 
-    async def _close_session(self) -> None:
-        """Close the dedicated session if it exists."""
-        if self._session is not None and not self._session.closed:
-            await self._session.close()
+    def _close_session(self) -> None:
+        """Drop the dedicated session reference (do NOT close manually)."""
         self._session = None
 
     def async_remove(self) -> None:
-        """Close the dedicated session when the options flow ends.
+        """Drop the dedicated session when the options flow ends.
 
         Note: FlowHandler.async_abort is synchronous in HA and must not be
         overridden as async (hacs review 2026-10-20); session cleanup belongs
-        in this synchronous callback instead.
+        in this synchronous callback instead. The session itself is
+        auto-cleaned by HA (async_create_clientsession auto_cleanup).
         """
-        if self._session is not None and not self._session.closed:
-            self.hass.async_create_task(self._session.close())
         self._session = None
 
     async def async_step_init(
@@ -522,7 +521,7 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
-                await self._close_session()
+                self._close_session()
                 return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
@@ -573,7 +572,7 @@ class XiaoDuOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
-                await self._close_session()
+                self._close_session()
                 await self.hass.config_entries.async_reload(
                     self.config_entry.entry_id
                 )

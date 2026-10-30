@@ -126,10 +126,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         data = hass.data[DOMAIN].pop(entry.entry_id, None)
-        # Close the per-entry session to release the connection pool.
-        session = data.get("session") if data else None
-        if session is not None:
-            await session.close()
+        # Do NOT close the per-entry session here — it is created via
+        # async_create_clientsession and owned/managed by Home Assistant;
+        # closing it triggers a deprecated-frame warning and can break other
+        # integrations sharing the session pool. Let HA clean it up on teardown.
     return unload_ok
 
 

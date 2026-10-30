@@ -9,6 +9,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -30,7 +31,7 @@ async def async_setup_entry(
     apis: dict[str, XiaoDuAPI] = entry_data["apis"]
     coordinator: XiaoDuDataUpdateCoordinator = entry_data["coordinator"]
     hub_device_id = entry_data["hub_device_id"]
-    entity_registry = hass.helpers.entity_registry.async_get(hass)
+    entity_registry = er.async_get(hass)
 
     entities = []
     for appliance_id, api in apis.items():
