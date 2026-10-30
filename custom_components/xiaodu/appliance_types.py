@@ -6,6 +6,8 @@ from typing import Any
 
 
 # ── Appliance type → HA platform mappings ───────────────────────────
+# Reference: DuerOS smart-home device catalogue (diandeng.tech/doc/voice-assistant)
+# plus additional types observed from the XiaoDu cloud API.
 
 # Light devices
 LIGHT_TYPES = {"LIGHT"}
@@ -27,22 +29,49 @@ SWITCH_TYPES = {
     "KETTLE",
     "RICE_COOKER",
     "MICROWAVE",
+    "MICROWAVE_OVEN",
     "OVEN",
     "FRIDGE",
     "DISHWASHER",
+    "GAS_STOVE",
+    "RANGE_HOOD",
+    "PRESSURE_COOKER",
+    "INDUCTION_COOKER",
+    "HIGH_SPEED_BLENDER",
+    "PRINTER",
+    "ROBOT",
+    "WATER_PURIFIER",
+    "SET_TOP_BOX",
+    "TV_SET",
+    "WEBCAM",
+    "ELECTRIC_BLANKET",
+    "MASSAGE_CHAIR",
+    "COFFEE_MACHINE",
+    "WINE_CELLAR",
+    "WATER_DISPENSER",
+    "TOILET",
+    "SOY_MILK_MAKER",
+    "BOTTLE_WARMER",
+    "DRYER",
+    "WALL_HUNG_BOILER",
+    "MOSQUITO_DISPELLER",
+    "TREADMILL",
 }
 
 # Cover / curtain devices
-COVER_TYPES = {"CURTAIN", "CURTAIN_SWITCH"}
+COVER_TYPES = {"CURTAIN", "CURTAIN_SWITCH", "WINDOW", "SHADE", "BLIND"}
 
 # Climate / AC devices
 CLIMATE_TYPES = {"AIR_CONDITION", "AIRCONDITION", "AC"}
 
 # Fan devices
-FAN_TYPES = {"FAN", "CEILING_FAN", "AIR_CONDITIONER_FAN"}
+FAN_TYPES = {"FAN", "CEILING_FAN", "AIR_CONDITIONER_FAN", "VENTILATOR", "EXHAUST_FAN"}
 
 # Lock devices
-LOCK_TYPES = {"DOOR_LOCK", "SMART_LOCK"}
+LOCK_TYPES = {"DOOR_LOCK", "SMART_LOCK", "FINGERPRINT_LOCK", "SMART_GATING"}
+
+# Vacuum / robot cleaner devices
+VACUUM_TYPES = {"SWEEPING_ROBOT", "ROBOT_VACUUM", "SWEEPER"}
 
 # Button / scene trigger devices
 BUTTON_TYPES = {"SCENE_TRIGGER", "SCENE"}
@@ -56,6 +85,13 @@ SENSOR_CAPABLE_TYPES = {
     "AIR_CONDITION",
     "FAN",
     "WATER_HEATER",
+    "AIR_MONITOR",
+    "SENSOR",
+    "WATER_PURIFIER",
+    "TV_SET",
+    "FRIDGE",
+    "WASHING_MACHINE",
+    "CLOTHES_RACK",
 }
 
 # ── Sensor attribute mappings ────────────────────────────────────────
@@ -78,6 +114,26 @@ SENSOR_ATTRIBUTES: dict[str, tuple[str, str | None, str | None]] = {
     "battery": ("电量", "%", "battery"),
     "illumination": ("照度", "lx", "illuminance"),
     "lightLevel": ("照度", "lx", "illuminance"),
+    "pm10": ("PM10", "μg/m³", "pm10"),
+    "pm1_0": ("PM1.0", "μg/m³", "pm1"),
+    "noise": ("噪音", "dB", None),
+    "noiseLevel": ("噪音", "dB", None),
+    "tds": ("TDS", "ppm", None),
+    "totalDissolvedSolids": ("TDS", "ppm", None),
+    "filterLife": ("滤芯寿命", "%", None),
+    "waterPurifyStatus": ("净水状态", None, None),
+    "workStatus": ("工作状态", None, None),
+    "mode": ("模式", None, None),
+    "windSpeed": ("风速", None, None),
+    "airQualityIndex": ("空气质量指数", None, "aqi"),
+    "voc": ("VOC", "mg/m³", "volatile_organic_compounds"),
+    "formaldehydeValue": ("甲醛", "mg/m³", "formaldehyde"),
+    "temperatureValue": ("温度", "°C", "temperature"),
+    "humidityValue": ("湿度", "%", "humidity"),
+    "power": ("功率", "W", "power"),
+    "energy": ("电量", "kWh", "energy"),
+    "voltage": ("电压", "V", "voltage"),
+    "current": ("电流", "A", "current"),
 }
 
 
@@ -94,6 +150,7 @@ class ApplianceTypes:
         | CLIMATE_TYPES
         | FAN_TYPES
         | LOCK_TYPES
+        | VACUUM_TYPES
         | BUTTON_TYPES
         | SENSOR_CAPABLE_TYPES
     )
@@ -127,6 +184,11 @@ class ApplianceTypes:
     def is_lock(appliance_types: list[str]) -> bool:
         """Check if appliance types include a door lock."""
         return any(t in LOCK_TYPES for t in appliance_types)
+
+    @staticmethod
+    def is_vacuum(appliance_types: list[str]) -> bool:
+        """Check if appliance types include a robot vacuum."""
+        return any(t in VACUUM_TYPES for t in appliance_types)
 
     @staticmethod
     def is_button(appliance_types: list[str]) -> bool:

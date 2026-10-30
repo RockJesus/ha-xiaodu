@@ -7,6 +7,7 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -29,12 +30,30 @@ async def async_setup_entry(
     apis: dict[str, XiaoDuAPI] = entry_data["apis"]
     coordinator: XiaoDuDataUpdateCoordinator = entry_data["coordinator"]
     hub_device_id = entry_data["hub_device_id"]
+    entity_registry = hass.helpers.entity_registry.async_get(hass)
 
     entities = []
     for appliance_id, api in apis.items():
         appliance_types = getattr(api, "appliance_types", [])
         appliance = coordinator.get_appliance_info(appliance_id)
         if not appliance:
+            continue
+
+        # Robot vacuums are handled by the dedicated vacuum platform —
+        # never create a generic power switch for them here, and clean up
+        # any legacy switch entity that was created before the vacuum
+        # platform existed (unique_id "{id}_switch").
+        if ApplianceTypes.is_vacuum(appliance_types):
+            legacy_entity_id = entity_registry.async_get_entity_id(
+                Platform.SWITCH, DOMAIN, f"{appliance_id}_switch"
+            )
+            if legacy_entity_id:
+                _LOGGER.info(
+                    "XiaoDu %s is a robot vacuum — removing legacy switch %s",
+                    appliance_id,
+                    legacy_entity_id,
+                )
+                entity_registry.async_remove(legacy_entity_id)
             continue
 
         if ApplianceTypes.is_switch(appliance_types):

@@ -36,6 +36,7 @@ PLATFORMS: list[Platform] = [
     Platform.FAN,
     Platform.LOCK,
     Platform.BUTTON,
+    Platform.VACUUM,
 ]
 
 

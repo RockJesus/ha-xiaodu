@@ -418,6 +418,62 @@ class XiaoDuAPI:
         )
         return await self.send_command(payload)
 
+    # ── Vacuum / robot cleaner control ───────────────────────────────
+
+    async def vacuum_start(self) -> tuple[bool, str | None]:
+        """Start the robot vacuum cleaning."""
+        payload = self._build_payload(
+            "StartCleaningRequest",
+            extra_state={"cleaningState": {"value": "CLEANING"}},
+        )
+        return await self.send_command(payload)
+
+    async def vacuum_stop(self) -> tuple[bool, str | None]:
+        """Stop the robot vacuum (stay in place)."""
+        payload = self._build_payload(
+            "StopCleaningRequest",
+            extra_state={"cleaningState": {"value": "STOPPED"}},
+        )
+        return await self.send_command(payload)
+
+    async def vacuum_pause(self) -> tuple[bool, str | None]:
+        """Pause the robot vacuum."""
+        payload = self._build_payload(
+            "PauseCleaningRequest",
+            extra_state={"cleaningState": {"value": "PAUSED"}},
+        )
+        return await self.send_command(payload)
+
+    async def vacuum_return_to_base(self) -> tuple[bool, str | None]:
+        """Send the robot vacuum back to its dock."""
+        payload = self._build_payload(
+            "ReturnToBaseRequest",
+            extra_state={"cleaningState": {"value": "RETURNING"}},
+        )
+        return await self.send_command(payload)
+
+    async def get_vacuum_state(self) -> str | None:
+        """Get the current vacuum cleaning state.
+
+        Returns one of: CLEANING, PAUSED, STOPPED, RETURNING, CHARGING,
+        DOCKED or None when unknown.
+        """
+        detail = await self.get_appliance_detail()
+        if not detail or "appliance" not in detail:
+            return None
+        try:
+            state_setting = detail["appliance"]["stateSetting"]
+            # Prefer explicit cleaning state, fall back to turnOnState.
+            for key in ("cleaningState", "cleaningStatus", "workStatus"):
+                if key in state_setting:
+                    value = state_setting[key].get("value")
+                    if value is not None:
+                        return str(value).upper()
+            on_off = state_setting.get("turnOnState", {}).get("value")
+            return "CLEANING" if str(on_off).lower() == "on" else "DOCKED"
+        except (KeyError, TypeError, AttributeError):
+            return None
+
     # ── Lock control ──────────────────────────────────────────────────
 
     async def lock(self) -> tuple[bool, str | None]:
