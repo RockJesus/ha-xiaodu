@@ -12,6 +12,7 @@ from typing import Any
 
 from homeassistant.components.vacuum import (
     StateVacuumEntity,
+    VacuumActivity,
     VacuumEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -99,8 +100,8 @@ class XiaoDuVacuum(CoordinatorEntity, StateVacuumEntity):
         return self.coordinator.get_appliance_data(self._appliance_id) is not None
 
     @property
-    def state(self) -> str:
-        """Return the current vacuum state."""
+    def activity(self) -> VacuumActivity | None:
+        """Return the current vacuum activity."""
         state = self.coordinator.get_state_setting(self._appliance_id)
         raw = None
         for key in ("cleaningState", "cleaningStatus", "workStatus"):
@@ -113,16 +114,16 @@ class XiaoDuVacuum(CoordinatorEntity, StateVacuumEntity):
 
         value = str(raw).upper()
         if value in ("CLEANING", "SWEEPING", "RUNNING"):
-            return self.STATE_CLEANING
+            return VacuumActivity.CLEANING
         if value in ("PAUSED", "PAUSE", "PAUSING"):
-            return self.STATE_PAUSED
+            return VacuumActivity.PAUSED
         if value in ("RETURNING", "RETURN_TO_BASE", "GOING_HOME", "DOCKING"):
-            return self.STATE_RETURNING
+            return VacuumActivity.RETURNING
         if value in ("CHARGING", "DOCKED", "CHARGED", "IDLE", "STANDBY"):
-            return self.STATE_DOCKED
+            return VacuumActivity.DOCKED
         if value in ("STOPPED", "STOP", "OFF"):
-            return self.STATE_IDLE
-        return self.STATE_IDLE
+            return VacuumActivity.IDLE
+        return VacuumActivity.IDLE
 
     @property
     def battery_level(self) -> int | None:
