@@ -223,11 +223,23 @@ xiaodu_integration/
 
 
 
-### v1.3.8（2026-10-30）
+### v1.3.9（2026-11-02）
+
+- **新增灯彩光（HS 颜色）控制** — 按 DuerOS 官方协议补齐 `color` 属性（HSL：hue/saturation/brightness）：彩灯实体支持色环调色与亮度联动，可语音/界面直接设任意颜色（此前彩灯只能当开关/亮度灯用）
+- **协议合规加固** — 控制指令 `header.messageId` 现按官方规范生成随机 UUID；清理 `const.py` 中缺失 vacuum 的旧 `PLATFORMS` 死代码（真正生效的是 `__init__.py` 的 9 平台列表），避免误导后续维护
+- **传感器补运行时长** — 支持 `workTime` / `runTime` / `totalWorkTime`（对应官方 TIME 查询码）上报运行时长
+- **空调风扇直设** — 风扇档位改为直接下发 `SetFanSpeedPercentageRequest`（按 33/66/100% 映射），失败自动回退原 increment/decrement 方案，减少多次请求
+- **修复前端重配置入口** — 补 `async_step_reconfigure`（此前缺失会导致 HA 前端「重新配置」入口 400 静默失败），登录成功后自动更新并重载集成
+
+<details>
+<summary>v1.3.8（2026-10-30）</summary>
+
 
 - **修复 switch 平台 setup 崩溃** — 用 `entity_registry.async_get(hass)` 替代已移除的 `hass.helpers`（HA 2026.10 移除该属性），开关平台恢复正常加载
 - **修复 session 关闭警告** — 移除集成中对 `async_create_clientsession` 会话的手动 `close()`（HA 自动清理），消除 "closes the Home Assistant aiohttp session" 弃用警告
 
+
+</details>
 <details>
 <summary>v1.3.7（2026-10-30）</summary>
 

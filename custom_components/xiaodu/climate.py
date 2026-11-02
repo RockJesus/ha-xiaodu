@@ -237,7 +237,24 @@ class XiaoDuClimate(CoordinatorEntity, ClimateEntity):
         if current == fan_mode:
             return
 
-        # Map fan modes to numeric steps
+        # Try direct fan speed set first (fewer requests than stepping).
+        # Map LOW/MEDIUM/HIGH to 33/66/100 percent; the API clamps to the
+        # device's actual range via valueRangeMap.
+        pct_by_mode = {FAN_LOW: 33, FAN_MEDIUM: 66, FAN_HIGH: 100}
+        pct = pct_by_mode.get(fan_mode)
+        if pct is not None:
+            success, error = await self._api.set_fan_speed(
+                pct, payload_version=1
+            )
+            if success:
+                await self.coordinator.async_request_refresh()
+                return
+            _LOGGER.debug(
+                "Direct AC fan speed set failed (%s), falling back to increment/decrement",
+                error,
+            )
+
+        # Fallback: use increment/decrement
         mode_order = [FAN_LOW, FAN_MEDIUM, FAN_HIGH]
         try:
             current_idx = mode_order.index(current)

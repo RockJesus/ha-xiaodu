@@ -129,6 +129,21 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="reauth_aborted")
         return await self.async_step_user()
 
+    # ── Reconfigure (user edits an existing entry) ──────────────────
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Reconfigure an existing entry (change account/cookie).
+
+        Reuses the same login-method choice as the initial flow; on success
+        the entry data is updated and the entry reloaded.
+        """
+        self._reauth_entry = self._get_reconfigure_entry()
+        if self._reauth_entry is None:
+            return self.async_abort(reason="reconfigure_aborted")
+        return await self.async_step_user()
+
     # ── Step 1: choose login method ──────────────────────────────────
 
     async def async_step_user(
@@ -275,7 +290,8 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         Only overwrite username/password when they were actually provided
         (password-mode reauth); a cookie-mode reauth must keep the stored
-        credentials untouched.
+        credentials untouched. For a reconfigure source the entry is also
+        reloaded so the new credentials take effect immediately.
         """
         entry = self._reauth_entry
         if entry is None:
@@ -286,6 +302,8 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             new_data[CONF_USERNAME] = self._pending_username
         if self._pending_password:
             new_data[CONF_PASSWORD] = self._pending_password
+        if self.source == config_entries.SOURCE_RECONFIGURE:
+            return self.async_update_reload_and_abort(entry, data=new_data)
         self.hass.config_entries.async_update_entry(entry, data=new_data)
         return self.async_abort(reason="reauth_successful")
 

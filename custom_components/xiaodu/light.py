@@ -9,6 +9,7 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_EFFECT,
+    ATTR_HS_COLOR,
     ColorMode,
     LightEntity,
     LightEntityFeature,
@@ -79,10 +80,19 @@ class XiaoDuLight(CoordinatorEntity, LightEntity):
         state_setting = appliance.get("stateSetting", {})
         self._has_brightness = "brightness" in state_setting
         self._has_color_temp = "colorTemperatureInKelvin" in state_setting
+        self._has_color = "color" in state_setting
         self._has_mode = "mode" in state_setting
 
-        # Set color modes
-        if self._has_color_temp:
+        # Set color modes (official DuerOS color attribute is an HSL object
+        # with hue/saturation/brightness sub-properties)
+        if self._has_color and self._has_color_temp:
+            self._attr_supported_color_modes = {
+                ColorMode.HS,
+                ColorMode.COLOR_TEMP,
+            }
+        elif self._has_color:
+            self._attr_supported_color_modes = {ColorMode.HS}
+        elif self._has_color_temp:
             self._attr_supported_color_modes = {ColorMode.COLOR_TEMP}
             self._attr_color_mode = ColorMode.COLOR_TEMP
         elif self._has_brightness:
@@ -176,6 +186,46 @@ class XiaoDuLight(CoordinatorEntity, LightEntity):
         return self._max_ct_kelvin
 
     @property
+    def color_mode(self) -> ColorMode:
+        """Return the current color mode."""
+        if not self._has_color and not self._has_color_temp:
+            return self._attr_color_mode or ColorMode.ONOFF
+        state = self.coordinator.get_state_setting(self._appliance_id)
+        # If the device reports a color value, expose HS mode; otherwise
+        # fall back to color temperature when the device supports it.
+        if self._has_color:
+            color = state.get("color", {}).get("value")
+            if color and color.get("hue") is not None:
+                return ColorMode.HS
+        if self._has_color_temp:
+            return ColorMode.COLOR_TEMP
+        return ColorMode.ONOFF
+
+    @property
+    def hs_color(self) -> tuple[float, float] | None:
+        """Return the hue/saturation of this light (0-360, 0-100)."""
+        if not self._has_color:
+            return None
+        state = self.coordinator.get_state_setting(self._appliance_id)
+        color = state.get("color", {}).get("value")
+        if not color:
+            return None
+        hue = color.get("hue")
+        sat = color.get("saturation")
+        if hue is None or sat is None:
+            return None
+        # Official DuerOS color uses 0-360 hue and 0-100 saturation,
+        # but some devices report 0-1; normalize to HA range (0-100).
+        try:
+            hue_f = float(hue)
+            sat_f = float(sat)
+        except (TypeError, ValueError):
+            return None
+        if sat_f <= 1:
+            sat_f *= 100
+        return (max(0.0, min(360.0, hue_f)), max(0.0, min(100.0, sat_f)))
+
+    @property
     def effect(self) -> str | None:
         """Return the current effect."""
         if not self._has_mode:
@@ -189,7 +239,20 @@ class XiaoDuLight(CoordinatorEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
-        if ATTR_BRIGHTNESS in kwargs:
+        if ATTR_HS_COLOR in kwargs:
+            hue, sat = kwargs[ATTR_HS_COLOR]
+            brightness = kwargs.get(ATTR_BRIGHTNESS)
+            # Brightness 0-255 → 0-100 for the XiaoDu API.
+            if brightness is not None:
+                bri_pct = round(brightness / 255 * 100)
+            else:
+                bri_pct = round((self.brightness or 255) / 255 * 100)
+            await self._api.set_color(
+                max(0.0, min(360.0, float(hue))),
+                max(0.0, min(100.0, float(sat))),
+                max(0, min(100, bri_pct)),
+            )
+        elif ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
             pct = round(brightness / 255 * 100)
             await self._api.set_brightness(pct)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 import aiohttp
@@ -242,6 +243,7 @@ class XiaoDuAPI:
             "header": {
                 "namespace": DUEROS_NAMESPACE,
                 "name": name,
+                "messageId": str(uuid.uuid4()),
                 "payloadVersion": payload_version,
             },
             "payload": payload,
@@ -313,6 +315,27 @@ class XiaoDuAPI:
             "SetModeRequest",
             parameters={"attribute": "mode", "attributeValue": mode},
             extra_state={"mode": {"value": mode}},
+        )
+        return await self.send_command(payload)
+
+    async def set_color(
+        self, hue: float, saturation: float, brightness: float
+    ) -> tuple[bool, str | None]:
+        """Set light color in HSL.
+
+        hue 0-360, saturation 0-100 (%), brightness 0-100 (%).
+        DuerOS official color attribute is an object with three
+        sub-properties: hue / saturation / brightness (HSL mode).
+        """
+        color_value = {
+            "hue": hue,
+            "saturation": saturation,
+            "brightness": brightness,
+        }
+        payload = self._build_payload(
+            "SetColorRequest",
+            parameters={"attribute": "color", "attributeValue": color_value},
+            extra_state={"color": {"value": color_value}},
         )
         return await self.send_command(payload)
 
@@ -390,12 +413,15 @@ class XiaoDuAPI:
 
     # ── Fan control ───────────────────────────────────────────────────
 
-    async def set_fan_speed(self, percentage: int) -> tuple[bool, str | None]:
+    async def set_fan_speed(
+        self, percentage: int, payload_version: int = 3
+    ) -> tuple[bool, str | None]:
         """Set fan speed percentage (0-100)."""
         payload = self._build_payload(
             "SetFanSpeedPercentageRequest",
             parameters={"attribute": "fanSpeed", "attributeValue": percentage},
             extra_state={"fanSpeed": {"value": percentage}},
+            payload_version=payload_version,
         )
         return await self.send_command(payload)
 

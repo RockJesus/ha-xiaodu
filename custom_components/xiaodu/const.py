@@ -49,18 +49,6 @@ CAPTCHA_IMAGE = "xiaodu_captcha.png"
 # DuerOS control namespace
 DUEROS_NAMESPACE = "DuerOS.ConnectedHome.Control"
 
-# Platforms
-PLATFORMS = [
-    "light",
-    "switch",
-    "cover",
-    "climate",
-    "sensor",
-    "fan",
-    "lock",
-    "button",
-]
-
 # Error messages
 ERROR_INVALID_AUTH = "invalid_auth"
 ERROR_CANNOT_CONNECT = "cannot_connect"
