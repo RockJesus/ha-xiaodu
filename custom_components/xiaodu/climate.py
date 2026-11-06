@@ -109,7 +109,9 @@ class XiaoDuClimate(CoordinatorEntity, ClimateEntity):
             | ClimateEntityFeature.TARGET_TEMPERATURE
             | ClimateEntityFeature.FAN_MODE
         )
-        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
+        # HA 2026.11+ native temperature API: temperatures are reported in the
+        # device's native unit (Celsius); HA converts for display automatically.
+        self._attr_native_temperature_unit = UnitOfTemperature.CELSIUS
         self._attr_min_temp = 16
         self._attr_max_temp = 32
         self._attr_target_temperature_step = 1
@@ -162,8 +164,8 @@ class XiaoDuClimate(CoordinatorEntity, ClimateEntity):
         return XIAODU_TO_HVAC_MODE.get(mode, HVACMode.COOL)
 
     @property
-    def target_temperature(self) -> float | None:
-        """Return the target temperature."""
+    def native_target_temperature(self) -> float | None:
+        """Return the target temperature in the native unit (Celsius)."""
         state = self._get_state()
         temp = state.get("temperature", {}).get("value")
         if temp is not None:
@@ -171,8 +173,8 @@ class XiaoDuClimate(CoordinatorEntity, ClimateEntity):
         return None
 
     @property
-    def current_temperature(self) -> float | None:
-        """Return the current temperature (if available)."""
+    def native_current_temperature(self) -> float | None:
+        """Return the current/room temperature in the native unit (Celsius)."""
         state = self._get_state()
         # Some ACs report current/indoor temperature
         for key in ("indoorTemperature", "currentTemperature", "roomTemperature"):
@@ -205,7 +207,7 @@ class XiaoDuClimate(CoordinatorEntity, ClimateEntity):
                 error,
             )
             # Fallback: use increment/decrement
-            current = self.target_temperature
+            current = self.native_target_temperature
             if current is not None:
                 diff = int(temperature - current)
                 if diff > 0:
