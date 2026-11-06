@@ -223,9 +223,17 @@ xiaodu_integration/
 
 
 
-### v1.4.0（2026-11-06）
+### v1.4.1（2026-11-07）
+
+- **重新配置收尾改用 update listener 重载** — reconfigure 成功后先 `async_update_entry` 写入新凭据，再以 `reconfigure_successful` 结束流程，重载交给集成注册的 update listener 执行。HA 2026.11 起，同时使用 `async_update_reload_and_abort` 与 update listener 会触发弃用上报，2026.12.0 起不再允许——本次提前对齐，功能表现不变
+- **数据更新器显式绑定配置项** — `DataUpdateCoordinator` 显式传入 `config_entry`，不再依赖 ContextVar 隐式取值，重载与多配置场景下取值更稳
+
+<details>
+<summary>v1.4.0（2026-11-06）</summary>
 
 - **对齐 HA 2026.11 温度 API** — 空调实体的温度属性从已废弃的 `current_temperature` / `target_temperature` / `temperature_unit` 迁移到官方新 API `native_current_temperature` / `native_target_temperature` / `native_temperature_unit`，消除 HA 2026.11 的 deprecation 告警（旧写法将于 2027.11 彻底失效）；温度仍按设备原始单位（摄氏度）上报，由 HA 自动完成用户单位换算
+
+</details>
 
 <details>
 <summary>v1.3.9（2026-11-02）</summary>
