@@ -223,7 +223,12 @@ xiaodu_integration/
 
 
 
-### v1.3.9（2026-11-02）
+### v1.4.0（2026-11-06）
+
+- **对齐 HA 2026.11 温度 API** — 空调实体的温度属性从已废弃的 `current_temperature` / `target_temperature` / `temperature_unit` 迁移到官方新 API `native_current_temperature` / `native_target_temperature` / `native_temperature_unit`，消除 HA 2026.11 的 deprecation 告警（旧写法将于 2027.11 彻底失效）；温度仍按设备原始单位（摄氏度）上报，由 HA 自动完成用户单位换算
+
+<details>
+<summary>v1.3.9（2026-11-02）</summary>
 
 - **新增灯彩光（HS 颜色）控制** — 按 DuerOS 官方协议补齐 `color` 属性（HSL：hue/saturation/brightness）：彩灯实体支持色环调色与亮度联动，可语音/界面直接设任意颜色（此前彩灯只能当开关/亮度灯用）
 - **协议合规加固** — 控制指令 `header.messageId` 现按官方规范生成随机 UUID；清理 `const.py` 中缺失 vacuum 的旧 `PLATFORMS` 死代码（真正生效的是 `__init__.py` 的 9 平台列表），避免误导后续维护
@@ -231,6 +236,7 @@ xiaodu_integration/
 - **空调风扇直设** — 风扇档位改为直接下发 `SetFanSpeedPercentageRequest`（按 33/66/100% 映射），失败自动回退原 increment/decrement 方案，减少多次请求
 - **修复前端重配置入口** — 补 `async_step_reconfigure`（此前缺失会导致 HA 前端「重新配置」入口 400 静默失败），登录成功后自动更新并重载集成
 
+</details>
 <details>
 <summary>v1.3.8（2026-10-30）</summary>
 
