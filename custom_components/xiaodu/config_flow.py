@@ -302,9 +302,13 @@ class XiaoDuConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             new_data[CONF_USERNAME] = self._pending_username
         if self._pending_password:
             new_data[CONF_PASSWORD] = self._pending_password
-        if self.source == config_entries.SOURCE_RECONFIGURE:
-            return self.async_update_reload_and_abort(entry, data=new_data)
+        # Write the entry and let the update listener registered in
+        # __init__.py schedule the reload. async_update_reload_and_abort
+        # reports an error since HA 2026.11 (and is removed in 2026.12)
+        # when the entry already has update listeners.
         self.hass.config_entries.async_update_entry(entry, data=new_data)
+        if self.source == config_entries.SOURCE_RECONFIGURE:
+            return self.async_abort(reason="reconfigure_successful")
         return self.async_abort(reason="reauth_successful")
 
     # ── Step 2b: cookie login (original flow) ────────────────────────

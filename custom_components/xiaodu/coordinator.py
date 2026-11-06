@@ -34,11 +34,17 @@ class XiaoDuDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize the coordinator."""
+        extra: dict[str, Any] = {}
+        if entry is not None:
+            # HA 2026.11: pass the config entry explicitly instead of relying
+            # on the ContextVar fallback (recommended for custom integrations).
+            extra["config_entry"] = entry
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
+            **extra,
         )
         self.apis = apis
         self.entry = entry
