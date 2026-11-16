@@ -353,6 +353,27 @@ class XiaoDuAPI:
         """Stop curtain/cover."""
         return await self.send_command(self._build_payload("PauseRequest"))
 
+    async def set_cover_position(self, percent: int) -> tuple[bool, str | None]:
+        """Move the curtain to an open percentage (0 = closed, 100 = open).
+
+        The cloud accepts only ``TurnOnPercentRequest`` for position control;
+        the value is passed twice: ``parameters.attributeValue`` and
+        ``payload.degree``. Other directive names (``SetPositionRequest`` /
+        ``SetDegreeRequest`` / ``SetPercentageRequest``) are rejected with
+        ``21098 header name is not vaild``.
+        """
+        try:
+            value = str(max(0, min(100, int(float(percent)))))
+        except (TypeError, ValueError):
+            return False, "invalid_percent"
+        return await self.send_command(
+            self._build_payload(
+                "TurnOnPercentRequest",
+                parameters={"attribute": "degree", "attributeValue": value},
+                extra_state={"degree": value},
+            )
+        )
+
     # ── Climate / AC control ─────────────────────────────────────────
 
     async def set_ac_on(self) -> tuple[bool, str | None]:
