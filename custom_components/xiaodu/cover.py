@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.cover import (
+    ATTR_POSITION,
     CoverEntity,
     CoverEntityFeature,
 )
@@ -20,6 +21,16 @@ from .const import DOMAIN
 from .coordinator import XiaoDuDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# State keys that may carry the open percentage. XiaoDu curtains report it as
+# ``degree``; the others are kept as fallbacks for other cover models.
+POSITION_KEYS = (
+    "degree",
+    "position",
+    "curtainPosition",
+    "percentControl",
+    "openPercent",
+)
 
 
 async def async_setup_entry(
@@ -70,12 +81,12 @@ class XiaoDuCover(CoordinatorEntity, CoverEntity):
         self._manufacturer = appliance.get("botName", "小度")
         self._model = appliance.get("model", "")
 
-        # XiaoDu curtains only support open/close/stop, no position control
-        self._attr_supported_features = (
-            CoverEntityFeature.OPEN
-            | CoverEntityFeature.CLOSE
-            | CoverEntityFeature.STOP
-        )
+        # Position support is detected from the state payload and then latched:
+        # a curtain that reports its percentage once keeps the slider even if a
+        # later poll misses the field (offline or a flaky cloud response), so
+        # the UI never flickers between supported and unsupported.
+        self._supports_position = False
+        self._read_position()
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -94,16 +105,51 @@ class XiaoDuCover(CoordinatorEntity, CoverEntity):
         return self.coordinator.get_appliance_data(self._appliance_id) is not None
 
     @property
+    def supported_features(self) -> CoverEntityFeature:
+        """Return the supported cover features."""
+        if not self._supports_position:
+            # Cheap re-check: a curtain may only start reporting its percentage
+            # after the first poll (offline, or a flaky cloud response).
+            self._read_position()
+        features = (
+            CoverEntityFeature.OPEN
+            | CoverEntityFeature.CLOSE
+            | CoverEntityFeature.STOP
+        )
+        if self._supports_position:
+            features |= CoverEntityFeature.SET_POSITION
+        return features
+
+    def _read_position(self) -> int | None:
+        """Return the open percentage (100 = fully open), if reported."""
+        state = self.coordinator.get_state_setting(self._appliance_id)
+        for key in POSITION_KEYS:
+            entry = state.get(key)
+            if not isinstance(entry, dict):
+                continue
+            try:
+                position = max(0, min(100, int(float(entry.get("value")))))
+            except (TypeError, ValueError):
+                continue
+            # Latch support on the first successful read; never unset it.
+            self._supports_position = True
+            return position
+        return None
+
+    @property
     def is_closed(self) -> bool | None:
         """Return if the cover is closed."""
+        position = self._read_position()
+        if position is not None:
+            return position == 0
         state = self.coordinator.get_state_setting(self._appliance_id)
         # turnOnState ON = open, OFF = closed
         return str(state.get("turnOnState", {}).get("value", "off")).lower() != "on"
 
     @property
     def current_cover_position(self) -> int | None:
-        """Return current position (not supported by XiaoDu API)."""
-        return None
+        """Return current open percentage (100 = fully open)."""
+        return self._read_position()
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
@@ -118,4 +164,22 @@ class XiaoDuCover(CoordinatorEntity, CoverEntity):
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
         await self._api.stop_cover()
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_cover_position(self, **kwargs: Any) -> None:
+        """Move the cover to a given open percentage (0 = closed, 100 = open)."""
+        raw = kwargs.get(ATTR_POSITION)
+        if raw is None:
+            return
+        try:
+            position = int(float(raw))
+        except (TypeError, ValueError):
+            return
+        position = max(0, min(100, position))
+        if position == 0:
+            await self._api.close_cover()
+        elif position == 100:
+            await self._api.open_cover()
+        else:
+            await self._api.set_cover_position(position)
         await self.coordinator.async_request_refresh()
